@@ -19,7 +19,7 @@ For older versions (2.10.2 and below), you can checkout this project: https://gi
 
 效果图 / Demo
 
-![demo](C:\Users\alien\Documents\PyCharm-Projects\netease_cloudmusic_discord_rpc\demo.png)
+![demo](demo.png)
 
 
 ## 使用方法 Usage
