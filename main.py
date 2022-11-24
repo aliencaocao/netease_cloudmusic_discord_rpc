@@ -1,6 +1,5 @@
 import gc
 import wmi
-import psutil
 from pyMeow import open_process, get_module, r_float64, close_process, get_module
 import ctypes
 from ctypes import wintypes
@@ -90,7 +89,6 @@ while True:
     song = get_title(pid)
     if not song: song = 'Unknown'
     process = open_process(pid)
-    ps_util_process = psutil.Process(pid)
     base_address = get_module(process, 'cloudmusic.dll')['base']
     current = r_float64(process, base_address + current_offset)
     current = sec_to_str(current)

@@ -1,4 +1,3 @@
 WMI
-psutil
 pyMeow
 pypresence
