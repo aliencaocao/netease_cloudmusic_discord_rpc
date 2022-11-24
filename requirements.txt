@@ -1,0 +1,4 @@
+WMI
+psutil
+pyMeow
+pypresence
