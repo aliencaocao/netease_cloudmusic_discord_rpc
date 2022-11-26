@@ -7,7 +7,7 @@ from pypresence import Presence
 import time
 from win32com.client import Dispatch
 
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 supported_cloudmusic_version = '2.10.6.3993'
 current_offset = 0xA65568
 maxlen_offset = 0xB16438  # TODO: does not work
