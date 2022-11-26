@@ -5,6 +5,7 @@ import ctypes
 from ctypes import wintypes
 from pypresence import Presence
 import time
+from win32com.client import Dispatch
 
 __version__ = '0.1.0'
 supported_cloudmusic_version = '2.10.6.3993'
@@ -37,6 +38,7 @@ user32.GetWindowTextW.argtypes = (
     wintypes.HWND,  # _In_  hWnd
     wintypes.LPWSTR,  # _Out_ lpString
     ctypes.c_int,)  # _In_  nMaxCount
+wmic = wmi.WMI()
 
 
 def get_title(pid) -> str:
@@ -71,7 +73,6 @@ start_time = time.time()
 first_run = True
 
 while True:
-    wmic = wmi.WMI()
     process = wmic.Win32_Process(name="cloudmusic.exe")
     process = [p for p in process if '--type=' not in p.ole_object.CommandLine]
     if not process:  # if the app isnt running, do nothing
@@ -80,7 +81,6 @@ while True:
         raise RuntimeError('Multiple candidate processes found!')
     else:
         process = process[0]
-        from win32com.client import Dispatch
         ver_parser = Dispatch('Scripting.FileSystemObject')
         info = ver_parser.GetFileVersion(process.ExecutablePath)
         if info != supported_cloudmusic_version: raise RuntimeError(f'This version is not supported yet: {info}. Supported version: {supported_cloudmusic_version}')
@@ -98,3 +98,4 @@ while True:
     if first_run: print(f'Song: {song}, current: {current}')
     first_run = False
     gc.collect()
+    time.sleep(0.8)
