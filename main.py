@@ -126,9 +126,9 @@ while True:
         details=f'Listening to {song}', 
         state=f'Currently at {current}', 
         large_image= picUrl, 
-        large_text='Cloud Music', 
+        large_text=song, 
         start=int(start_time),
-        buttons = [{"label": "Listen on your web browser", "url":songLink}, {"label": "Wanna know how it works?", "url":"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified"}]
+        buttons = [{"label": "Play on your browser", "url":songLink}, {"label": "Wanna know how it works?", "url":"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified"}]
         )
 
     if first_run: print(f'Song: {song}, current: {current}')
