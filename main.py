@@ -9,7 +9,7 @@ from win32com.client import Dispatch
 from pypresence import Presence
 from pyMeow import open_process, get_module, r_float64, close_process, get_module
 
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 supported_cloudmusic_version = '2.10.6.3993'
 current_offset = 0xA65568
 maxlen_offset = 0xB16438  # TODO: does not work
