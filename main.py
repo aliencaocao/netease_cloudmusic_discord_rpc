@@ -86,7 +86,7 @@ def get_playing(path):
     songID = track_info['track']['id']
     return songID, picLink
 
-client_id = '1045242932128645180'
+client_id = '1040815873537093742'
 RPC = Presence(client_id)
 RPC.connect()
 print('RPC Launched\nThe following info will only be printed once for confirmation. They will continue to be updated to Discord.')
@@ -132,22 +132,21 @@ while True:
             state=f'Currently at {current}', 
             large_image= picUrl, 
             large_text=song, 
-            small_image= "logo",
+            small_image= r"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified/blob/master/logo.png?raw=true",
             small_text="NetEase Cloud Music", 
             start=int(start_time),
-            buttons = [{"label": "Play On Browser", "url":songLink}, {"label": "Wanna know how it works?", "url":"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified"}]
+            buttons = [{"label": "Play On Browser 	▶", "url":songLink}, {"label": "Wanna know how it works?", "url":"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified"}]
         )
     else:
     	RPC.update(
             pid=pid, 
             details='Paused', 
-            state=f'Currently at {timeCheck}', 
-            large_image= "logo", 
-            large_text="NetEase Cloud Music", 
+            large_image= r"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified/blob/master/logo.png?raw=true", 
+            large_text=f"Currently at {timeCheck}", 
             buttons = [{"label": "Wanna know how it works?", "url":"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified"}]
         )
 
-    if checkPauseTimer != 5:
+    if checkPauseTimer != 3:
     	checkPauseTimer = checkPauseTimer + 1
     else:
     	checkPauseTimer = 0
