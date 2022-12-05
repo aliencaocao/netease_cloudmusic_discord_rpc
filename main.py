@@ -92,6 +92,10 @@ RPC.connect()
 print('RPC Launched\nThe following info will only be printed once for confirmation. They will continue to be updated to Discord.')
 start_time = time.time()
 first_run = True
+is_paused = False
+checkPauseTimer = 0
+timeCheck = 0
+
 
 while True:
     process = wmic.Win32_Process(name="cloudmusic.exe")
@@ -121,17 +125,37 @@ while True:
     songLink, picUrl = get_playing(FilePath)
     songLink = songLinkPrefix + str(songLink)
 
-    RPC.update(
-        pid=pid, 
-        details=f'Listening to {song}', 
-        state=f'Currently at {current}', 
-        large_image= picUrl, 
-        large_text=song, 
-        small_image= "logo",
-        small_text="NetEase Cloud Music", 
-        start=int(start_time),
-        buttons = [{"label": "Play on browser", "url":songLink}, {"label": "Wanna know how it works?", "url":"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified"}]
+    if is_paused != True:
+        RPC.update(
+            pid=pid, 
+            details=f'Listening to {song}', 
+            state=f'Currently at {current}', 
+            large_image= picUrl, 
+            large_text=song, 
+            small_image= "logo",
+            small_text="NetEase Cloud Music", 
+            start=int(start_time),
+            buttons = [{"label": "Play On Browser", "url":songLink}, {"label": "Wanna know how it works?", "url":"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified"}]
         )
+    else:
+    	RPC.update(
+            pid=pid, 
+            details='Paused', 
+            state=f'Currently at {timeCheck}', 
+            large_image= "logo", 
+            large_text="NetEase Cloud Music", 
+            buttons = [{"label": "Wanna know how it works?", "url":"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified"}]
+        )
+
+    if checkPauseTimer != 5:
+    	checkPauseTimer = checkPauseTimer + 1
+    else:
+    	checkPauseTimer = 0
+    	if timeCheck == current:
+    		is_paused = True
+    	else:
+    		is_paused = False
+    	timeCheck = current
 
     if first_run: print(f'Song: {song}, current: {current}')
     first_run = False
