@@ -3,21 +3,17 @@ import wmi
 from pyMeow import open_process, get_module, r_float64, close_process, get_module
 import ctypes
 import json
+import sys
 from ctypes import wintypes
 from pypresence import Presence
 import time
 from win32com.client import Dispatch
 
-import sys
-#from watchdog.observers import Observer
-#from watchdog.events import FileSystemEventHandler
-
-
 __version__ = '0.1.2'
 supported_cloudmusic_version = '2.10.6.3993'
 current_offset = 0xA65568
 maxlen_offset = 0xB16438  # TODO: does not work
-print(f'网易云音乐Discord RPC v{__version__}，支持网易云音乐版本：{supported_cloudmusic_version}, modifide by HackerRouter')
+print(f'网易云音乐Discord RPC v{__version__}，支持网易云音乐版本：{supported_cloudmusic_version}, modified by HackerRouter')
 
 user32 = ctypes.windll.user32
 WNDENUMPROC = ctypes.WINFUNCTYPE(
@@ -66,12 +62,9 @@ def get_title(pid) -> str:
     user32.EnumWindows(enum_proc, 0)
     return ret
 
-
 def sec_to_str(sec) -> str:
     m, s = divmod(sec, 60)
     return f'{int(m):02d}:{int(s):02d}'
-
-
 
 def get_playing(path):
     track_info = dict()
@@ -91,15 +84,7 @@ def get_playing(path):
 
     picLink = track_info['track']['album']['picUrl']
     songID = track_info['track']['id']
-    ## track_name = track_info['track']['name']
-    ## artist_list = [i['name'] for i in track_info['track']['artists']]
- 
-    ##return track_name, artist_list
     return songID, picLink
-
-
-
-
 
 client_id = '1045242932128645180'
 RPC = Presence(client_id)
@@ -136,9 +121,6 @@ while True:
     songLink, picUrl = get_playing(FilePath)
     songLink = songLinkPrefix + str(songLink)
 
-
-
-
     RPC.update(
         pid=pid, 
         details=f'Listening to {song}', 
@@ -146,17 +128,8 @@ while True:
         large_image= picUrl, 
         large_text='Cloud Music', 
         start=int(start_time),
-        buttons = [{"label": "Listen it on web browser!", "url":songLink}, {"label": "Spotify no, Cloud Music yes.", "url":"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified"}]
+        buttons = [{"label": "Listen on your web browser", "url":songLink}, {"label": "Wanna know how it works?", "url":"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified"}]
         )
-    ##RPC.update(
-    	##pid=pid, 
-    	##details=f'Listening to {song}', 
-    	##state=f'Currently at {current}', 
-    	##large_image='logo', 
-    	##large_text='Cloud Music', 
-    	##start=int(start_time),
-    	##buttons = [{"label": "I'm still testing this...", "url":"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified"}, {"label": "Spotify no, Cloud Music yes.", "url":"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified"}]
-    	##)
 
     if first_run: print(f'Song: {song}, current: {current}')
     first_run = False
