@@ -1,11 +1,13 @@
 import gc
-import wmi
-from pyMeow import open_process, get_module, r_float64, close_process, get_module
+import time
+from threading import Event, Thread
 import ctypes
 from ctypes import wintypes
-from pypresence import Presence
-import time
+import wmi
+import pythoncom
 from win32com.client import Dispatch
+from pypresence import Presence
+from pyMeow import open_process, get_module, r_float64, close_process, get_module
 
 __version__ = '0.1.1'
 supported_cloudmusic_version = '2.10.6.3993'
@@ -38,7 +40,28 @@ user32.GetWindowTextW.argtypes = (
     wintypes.HWND,  # _In_  hWnd
     wintypes.LPWSTR,  # _Out_ lpString
     ctypes.c_int,)  # _In_  nMaxCount
-wmic = wmi.WMI()
+
+
+class RepeatedTimer:
+    def __init__(self, interval, function):
+        self.interval = interval
+        self.function = function
+        self.start = time.time()
+        self.event = Event()
+        self.thread = Thread(target=self._target)
+        self.thread.start()
+
+    def _target(self):
+        while not self.event.wait(self._time):
+            self.function()
+
+    @property
+    def _time(self):
+        return self.interval - ((time.time() - self.start) % self.interval)
+
+    def stop(self):
+        self.event.set()
+        self.thread.join()
 
 
 def get_title(pid) -> str:
@@ -72,11 +95,15 @@ print('RPC Launched\nThe following info will only be printed once for confirmati
 start_time = time.time()
 first_run = True
 
-while True:
+
+def update():
+    global first_run
+    pythoncom.CoInitialize()
+    wmic = wmi.WMI()
     process = wmic.Win32_Process(name="cloudmusic.exe")
     process = [p for p in process if '--type=' not in p.ole_object.CommandLine]
     if not process:  # if the app isnt running, do nothing
-        continue
+        return
     elif len(process) != 1:
         raise RuntimeError('Multiple candidate processes found!')
     else:
@@ -98,4 +125,7 @@ while True:
     if first_run: print(f'Song: {song}, current: {current}')
     first_run = False
     gc.collect()
-    time.sleep(0.8)
+    pythoncom.CoUninitialize()
+
+
+RepeatedTimer(1, update)  # calls the update function every second, ignore how long the actual update takes
