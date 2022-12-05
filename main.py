@@ -2,16 +2,22 @@ import gc
 import wmi
 from pyMeow import open_process, get_module, r_float64, close_process, get_module
 import ctypes
+import json
 from ctypes import wintypes
 from pypresence import Presence
 import time
 from win32com.client import Dispatch
 
-__version__ = '0.1.1'
+import sys
+#from watchdog.observers import Observer
+#from watchdog.events import FileSystemEventHandler
+
+
+__version__ = '0.1.2'
 supported_cloudmusic_version = '2.10.6.3993'
 current_offset = 0xA65568
 maxlen_offset = 0xB16438  # TODO: does not work
-print(f'网易云音乐Discord RPC v{__version__}，支持网易云音乐版本：{supported_cloudmusic_version}')
+print(f'网易云音乐Discord RPC v{__version__}，支持网易云音乐版本：{supported_cloudmusic_version}, modifide by HackerRouter')
 
 user32 = ctypes.windll.user32
 WNDENUMPROC = ctypes.WINFUNCTYPE(
@@ -40,6 +46,7 @@ user32.GetWindowTextW.argtypes = (
     ctypes.c_int,)  # _In_  nMaxCount
 wmic = wmi.WMI()
 
+decoder = json.JSONDecoder()
 
 def get_title(pid) -> str:
     ret = ''
@@ -63,6 +70,35 @@ def get_title(pid) -> str:
 def sec_to_str(sec) -> str:
     m, s = divmod(sec, 60)
     return f'{int(m):02d}:{int(s):02d}'
+
+
+
+def get_playing(path):
+    track_info = dict()
+    with open(path, encoding='utf-8') as f:
+        read_string = f.read(3200)
+        for _ in range(4):
+            try:
+                read_string += f.read(500)
+                decoded_json = decoder.raw_decode(read_string[1:])
+                track_info.update(decoded_json[0])
+                break
+            except json.JSONDecodeError:
+                pass
+ 
+    if not track_info:
+        return None
+
+    picLink = track_info['track']['album']['picUrl']
+    songID = track_info['track']['id']
+    ## track_name = track_info['track']['name']
+    ## artist_list = [i['name'] for i in track_info['track']['artists']]
+ 
+    ##return track_name, artist_list
+    return songID, picLink
+
+
+
 
 
 client_id = '1045242932128645180'
@@ -94,7 +130,34 @@ while True:
     current = sec_to_str(current)
     # maxlen = r_float64(process, base_address + maxlen_offset)  # not working now
     close_process(process)
-    RPC.update(pid=pid, details=f'Listening to {song}', state=f'Currently at {current}', large_image='logo', large_text='网易云音乐', start=int(start_time))
+    
+    FilePath = "C:\\Users\\user\\AppData\\Local\\Netease\\CloudMusic\\webdata\\file\\history"
+    songLinkPrefix = r"https://music.163.com/#/song?id="
+    songLink, picUrl = get_playing(FilePath)
+    songLink = songLinkPrefix + str(songLink)
+
+
+
+
+    RPC.update(
+        pid=pid, 
+        details=f'Listening to {song}', 
+        state=f'Currently at {current}', 
+        large_image= picUrl, 
+        large_text='Cloud Music', 
+        start=int(start_time),
+        buttons = [{"label": "Listen it on web browser!", "url":songLink}, {"label": "Spotify no, Cloud Music yes.", "url":"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified"}]
+        )
+    ##RPC.update(
+    	##pid=pid, 
+    	##details=f'Listening to {song}', 
+    	##state=f'Currently at {current}', 
+    	##large_image='logo', 
+    	##large_text='Cloud Music', 
+    	##start=int(start_time),
+    	##buttons = [{"label": "I'm still testing this...", "url":"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified"}, {"label": "Spotify no, Cloud Music yes.", "url":"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified"}]
+    	##)
+
     if first_run: print(f'Song: {song}, current: {current}')
     first_run = False
     gc.collect()
