@@ -20,7 +20,8 @@ For older versions (2.10.2 and below), you can checkout this project: https://gi
 效果图 / Demo
 
 ![demo](demo.png)
-
+![Modified Demo1](demoNew1.png)
+![Modified Demo2](demoNew2.png)
 
 ## 使用方法 Usage
 从Release页下载可执行文件(exe)，确保网易云音乐已经打开并且没有最小化到托盘（可以最小化到任务栏），然后运行exe并保持运行。如果中途将网易云音乐最小化到托盘，歌手和歌曲信息将不能同步，直到窗口重新被打开。

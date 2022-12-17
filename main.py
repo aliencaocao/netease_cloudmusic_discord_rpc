@@ -2,6 +2,8 @@ import gc
 import time
 from threading import Event, Thread
 import ctypes
+import json
+import sys
 from ctypes import wintypes
 import wmi
 import pythoncom
@@ -13,7 +15,7 @@ __version__ = '0.1.2'
 supported_cloudmusic_version = '2.10.6.3993'
 current_offset = 0xA65568
 maxlen_offset = 0xB16438  # TODO: does not work
-print(f'网易云音乐Discord RPC v{__version__}，支持网易云音乐版本：{supported_cloudmusic_version}')
+print(f'网易云音乐Discord RPC v{__version__}，支持网易云音乐版本：{supported_cloudmusic_version}, modified by HackerRouter')
 
 user32 = ctypes.windll.user32
 WNDENUMPROC = ctypes.WINFUNCTYPE(
@@ -63,6 +65,7 @@ class RepeatedTimer:
         self.event.set()
         self.thread.join()
 
+decoder = json.JSONDecoder()
 
 def get_title(pid) -> str:
     ret = ''
@@ -82,18 +85,40 @@ def get_title(pid) -> str:
     user32.EnumWindows(enum_proc, 0)
     return ret
 
-
 def sec_to_str(sec) -> str:
     m, s = divmod(sec, 60)
     return f'{int(m):02d}:{int(s):02d}'
 
+def get_playing(path):
+    track_info = dict()
+    with open(path, encoding='utf-8') as f:
+        read_string = f.read(3200)
+        for _ in range(4):
+            try:
+                read_string += f.read(500)
+                decoded_json = decoder.raw_decode(read_string[1:])
+                track_info.update(decoded_json[0])
+                break
+            except json.JSONDecodeError:
+                pass
+ 
+    if not track_info:
+        return None
 
-client_id = '1045242932128645180'
+    picLink = track_info['track']['album']['picUrl']
+    songID = track_info['track']['id']
+    return songID, picLink
+
+client_id = '1040815873537093742'
 RPC = Presence(client_id)
 RPC.connect()
 print('RPC Launched\nThe following info will only be printed once for confirmation. They will continue to be updated to Discord.')
 start_time = time.time()
 first_run = True
+is_paused = False
+checkPauseTimer = 0
+timeCheck = 0
+
 
 
 def update():
@@ -121,7 +146,43 @@ def update():
     current = sec_to_str(current)
     # maxlen = r_float64(process, base_address + maxlen_offset)  # not working now
     close_process(process)
-    RPC.update(pid=pid, details=f'Listening to {song}', state=f'Currently at {current}', large_image='logo', large_text='网易云音乐', start=int(start_time))
+    
+    FilePath = "C:\\Users\\user\\AppData\\Local\\Netease\\CloudMusic\\webdata\\file\\history"
+    songLinkPrefix = r"https://music.163.com/#/song?id="
+    songLink, picUrl = get_playing(FilePath)
+    songLink = songLinkPrefix + str(songLink)
+
+    if is_paused != True:
+        RPC.update(
+            pid=pid, 
+            details=f'Listening to {song}', 
+            state=f'Currently at {current}', 
+            large_image= picUrl, 
+            large_text=song, 
+            small_image= r"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified/blob/master/logo.png?raw=true",
+            small_text="NetEase Cloud Music", 
+            start=int(start_time),
+            buttons = [{"label": "Play On Browser 	▶", "url":songLink}, {"label": "Wanna know how it works?", "url":"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified"}]
+        )
+    else:
+    	RPC.update(
+            pid=pid, 
+            details='Paused', 
+            large_image= r"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified/blob/master/logo.png?raw=true", 
+            large_text=f"Currently at {timeCheck}", 
+            buttons = [{"label": "Wanna know how it works?", "url":"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified"}]
+        )
+
+    if checkPauseTimer != 3:
+    	checkPauseTimer = checkPauseTimer + 1
+    else:
+    	checkPauseTimer = 0
+    	if timeCheck == current:
+    		is_paused = True
+    	else:
+    		is_paused = False
+    	timeCheck = current
+
     if first_run: print(f'Song: {song}, current: {current}')
     first_run = False
     gc.collect()
