@@ -122,8 +122,14 @@ while True:
     
     FilePath = "C:\\Users\\user\\AppData\\Local\\Netease\\CloudMusic\\webdata\\file\\history"
     songLinkPrefix = r"https://music.163.com/#/song?id="
-    songLink, picUrl = get_playing(FilePath)
-    songLink = songLinkPrefix + str(songLink)
+    try:
+    	songLink, picUrl = get_playing(FilePath)
+    except:
+    	songLink = r"https://music.163.com/"
+    	picUrl = r"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified/blob/master/logo.png?raw=true"
+    else:
+        songLink = songLinkPrefix + str(songLink)
+
 
     if is_paused != True:
         RPC.update(
@@ -135,7 +141,7 @@ while True:
             small_image= r"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified/blob/master/logo.png?raw=true",
             small_text="NetEase Cloud Music", 
             start=int(start_time),
-            buttons = [{"label": "Play On Browser 	▶", "url":songLink}, {"label": "Wanna know how it works?", "url":"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified"}]
+            buttons = [{"label": "Play On Browser ▶", "url":songLink}, {"label": "Wanna know how it works?", "url":"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified"}]
         )
     else:
     	RPC.update(
@@ -146,17 +152,14 @@ while True:
             buttons = [{"label": "Wanna know how it works?", "url":"https://github.com/HackerRouter/netease_cloudmusic_discord_rpc-modified"}]
         )
 
-    if checkPauseTimer != 3:
-    	checkPauseTimer = checkPauseTimer + 1
+    if timeCheck == current:
+    	is_paused = True
     else:
-    	checkPauseTimer = 0
-    	if timeCheck == current:
-    		is_paused = True
-    	else:
-    		is_paused = False
-    	timeCheck = current
+    	is_paused = False
+    timeCheck = current
 
     if first_run: print(f'Song: {song}, current: {current}')
     first_run = False
     gc.collect()
-    time.sleep(0.8)
+    #time.sleep(0.8)
+    time.sleep(3)
