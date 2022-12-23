@@ -1,6 +1,13 @@
 # 网易云音乐 Discord Rich Presence (RPC)
 
 ## 介绍 About
+
+由HackerRouter魔改的版本，支持显示歌曲封面、歌曲链接、听歌软件，在暂停时会显示Paused并隐藏歌曲
+
+更改了数据刷新频率，使其贴合discord的刷新频率限制
+
+支持博客的歌曲显示
+
 支持同步歌曲，歌手和目前歌曲的播放时长。歌曲的总时长暂不支持显示。
 
 Supports synchronizing song, artist and current song's playing time. Total duration of the song is not supported yet.
