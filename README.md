@@ -31,9 +31,7 @@ For older versions (2.10.2 and below), you can checkout this project: https://gi
 ![Modified Demo2](demoNew2.png)
 
 ## 使用方法 Usage
-从Release页下载可执行文件(exe)，确保网易云音乐已经打开并且没有最小化到托盘（可以最小化到任务栏），然后运行exe并保持运行。如果中途将网易云音乐最小化到托盘，歌手和歌曲信息将不能同步，直到窗口重新被打开。
-
-Download the executable binary (exe) from the Release page, make sure you have NetEase Cloud Music running and the window is NOT minimized to tray icon (you can minimize it to taskbar) before running the exe. Keep the exe running. If you minimize the client to tray icon, the song and singer info will stop syncing, until you open the window again.
+运行main.py
 
 # 构建 Building
 你需要 / You need:
