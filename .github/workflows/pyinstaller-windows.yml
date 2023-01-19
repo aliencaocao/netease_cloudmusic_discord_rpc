@@ -2,7 +2,7 @@ name: Package exe with PyInstaller - Windows
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, leko-text ]
   pull_request:
     branches: [ master ]
 

@@ -8,6 +8,7 @@ import pythoncom
 from win32com.client import Dispatch
 from pypresence import Presence
 from pyMeow import open_process, get_module, r_float64, close_process, get_module
+from typing import Tuple
 
 __version__ = '0.1.2'
 supported_cloudmusic_version = '2.10.6.3993'
@@ -64,23 +65,30 @@ class RepeatedTimer:
         self.thread.join()
 
 
-def get_title(pid) -> str:
-    ret = ''
+def get_title(pid) -> Tuple[str, str]:
+    title = ''
+    artist = ''
 
     @WNDENUMPROC
     def enum_proc(hWnd, lParam):
-        nonlocal ret
+        nonlocal title
+        nonlocal artist
+
         if user32.IsWindowVisible(hWnd):
             _pid = wintypes.DWORD()
             user32.GetWindowThreadProcessId(hWnd, ctypes.byref(_pid))
             length = user32.GetWindowTextLengthW(hWnd) + 1
-            title = ctypes.create_unicode_buffer(length)
-            user32.GetWindowTextW(hWnd, title, length)
-            if _pid.value == pid: ret = title.value
+            buf = ctypes.create_unicode_buffer(length)
+            user32.GetWindowTextW(hWnd, buf, length)
+
+            if _pid.value == pid: 
+                title = buf.value
+                if ' - ' in title:
+                    title, artist = title.split(' - ')
         return True
 
     user32.EnumWindows(enum_proc, 0)
-    return ret
+    return (title, artist)
 
 
 def sec_to_str(sec) -> str:
@@ -88,7 +96,7 @@ def sec_to_str(sec) -> str:
     return f'{int(m):02d}:{int(s):02d}'
 
 
-client_id = '1045242932128645180'
+client_id = '1065646978672902144'
 RPC = Presence(client_id)
 RPC.connect()
 print('RPC Launched\nThe following info will only be printed once for confirmation. They will continue to be updated to Discord.')
@@ -113,16 +121,16 @@ def update():
         if info != supported_cloudmusic_version: raise RuntimeError(f'This version is not supported yet: {info}. Supported version: {supported_cloudmusic_version}')
         pid = process.ole_object.ProcessId
         if first_run: print(f'Found process: {pid}')
-    song = get_title(pid)
-    if not song: song = 'Unknown'
+    (title, artist) = get_title(pid)
+    if not title: title = 'Unknown'
     process = open_process(pid)
     base_address = get_module(process, 'cloudmusic.dll')['base']
     current = r_float64(process, base_address + current_offset)
-    current = sec_to_str(current)
+    current_s = sec_to_str(current)
     # maxlen = r_float64(process, base_address + maxlen_offset)  # not working now
     close_process(process)
-    RPC.update(pid=pid, details=f'Listening to {song}', state=f'Currently at {current}', large_image='logo', large_text='网易云音乐', start=int(start_time))
-    if first_run: print(f'Song: {song}, current: {current}')
+    RPC.update(pid=pid, details=f'{title}', state=f'{artist}', large_image='logo', large_text='Netease Cloud Music', start=int(time.time() - current))
+    if first_run: print(f'{title} - {artist}, current: {current_s}')
     first_run = False
     gc.collect()
     pythoncom.CoUninitialize()
