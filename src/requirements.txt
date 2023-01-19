@@ -1,0 +1,4 @@
+pyMeow @ https://github.com/qb-0/pyMeow/releases/download/1.21.8/pyMeow-1.21.8.zip
+WMI
+pypresence
+pyinstaller

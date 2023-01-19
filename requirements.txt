@@ -1,4 +1,0 @@
-WMI
-pyMeow
-pypresence
-pyinstaller
