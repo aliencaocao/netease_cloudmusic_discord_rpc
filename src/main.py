@@ -187,7 +187,7 @@ def update():
 
     close_process(process)
     RPC.update(pid=pid, details=f'{song_info["title"]}', state=f'{song_info["artist"]} | {song_info["album"]}', large_image=song_info["cover"],
-               large_text='Netease Cloud Music', start=int(time.time() - current_double))
+               large_text=song_info["album"], start=int(time.time() - current_double))
     if first_run:
         print(f'{song_info["title"]} - {song_info["artist"]}, current_double: {current_pystr}')
     
