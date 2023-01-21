@@ -186,8 +186,13 @@ def update():
     song_info = get_song_info(song_id)
 
     close_process(process)
-    RPC.update(pid=pid, details=f'{song_info["title"]}', state=f'{song_info["artist"]} | {song_info["album"]}', large_image=song_info["cover"],
+    try:
+        RPC.update(pid=pid, details=f'{song_info["title"]}', state=f'{song_info["artist"]} | {song_info["album"]}', large_image=song_info["cover"],
                large_text=song_info["album"], start=int(time.time() - current_double))
+    except:
+        print(f"Error while updating Discord: {song_id}")
+        pass
+    
     if first_run:
         print(f'{song_info["title"]} - {song_info["artist"]}, current_double: {current_pystr}')
     
