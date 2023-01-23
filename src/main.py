@@ -150,55 +150,58 @@ def get_song_info(song_id: str) -> str:
 def update():
     global first_run
 
-    pythoncom.CoInitialize()
-    wmic = wmi.WMI()
-    process = wmic.Win32_Process(name="cloudmusic.exe")
-    process = [p for p in process if '--type=' not in p.ole_object.CommandLine]
-    if not process:  # if the app isnt running, do nothing
-        return
-    elif len(process) != 1:
-        raise RuntimeError('Multiple candidate processes found!')
-    else:
-        process = process[0]
-        ver_parser = Dispatch('Scripting.FileSystemObject')
-        info = ver_parser.GetFileVersion(process.ExecutablePath)
-        if info != supported_cloudmusic_version:
-            raise RuntimeError(
-                f'This version is not supported yet: {info}. Supported version: {supported_cloudmusic_version}')
-        pid = process.ole_object.ProcessId
-        if first_run:
-            print(f'Found process: {pid}')
-
-    process = open_process(pid)
-    module_base = get_module(process, 'cloudmusic.dll')['base']
-
-    current_double = r_float64(process, module_base + current_offset)
-    current_pystr = sec_to_str(current_double)
-
-    songid_array = r_uint(process, module_base + song_array_offset)
-    song_id = r_bytes(process, songid_array, 0x14).decode('utf-16')
-
-    re_song_id = re.compile(r'(\d+)')
-    if not re_song_id.match(song_id):
-        # Song ID is not ready yet.
-        return
-
-    song_info = get_song_info(song_id)
-
-    close_process(process)
     try:
-        RPC.update(pid=pid, details=f'{song_info["title"]}', state=f'{song_info["artist"]} | {song_info["album"]}', large_image=song_info["cover"],
-               large_text=song_info["album"], start=int(time.time() - current_double))
+        pythoncom.CoInitialize()
+        wmic = wmi.WMI()
+        process = wmic.Win32_Process(name="cloudmusic.exe")
+        process = [p for p in process if '--type=' not in p.ole_object.CommandLine]
+        if not process:  # if the app isnt running, do nothing
+            return
+        elif len(process) != 1:
+            raise RuntimeError('Multiple candidate processes found!')
+        else:
+            process = process[0]
+            ver_parser = Dispatch('Scripting.FileSystemObject')
+            info = ver_parser.GetFileVersion(process.ExecutablePath)
+            if info != supported_cloudmusic_version:
+                raise RuntimeError(
+                    f'This version is not supported yet: {info}. Supported version: {supported_cloudmusic_version}')
+            pid = process.ole_object.ProcessId
+            if first_run:
+                print(f'Found process: {pid}')
+
+        process = open_process(pid)
+        module_base = get_module(process, 'cloudmusic.dll')['base']
+
+        current_double = r_float64(process, module_base + current_offset)
+        current_pystr = sec_to_str(current_double)
+
+        songid_array = r_uint(process, module_base + song_array_offset)
+        song_id = r_bytes(process, songid_array, 0x14).decode('utf-16')
+
+        re_song_id = re.compile(r'(\d+)')
+        if not re_song_id.match(song_id):
+            # Song ID is not ready yet.
+            return
+
+        song_info = get_song_info(song_id)
+
+        close_process(process)
+        try:
+            RPC.update(pid=pid, details=f'{song_info["title"]}', state=f'{song_info["artist"]} | {song_info["album"]}', large_image=song_info["cover"],
+                large_text=song_info["album"], start=int(time.time() - current_double))
+        except:
+            print(f"Error while updating Discord: {song_id}")
+            pass
+
+        if first_run:
+            print(f'{song_info["title"]} - {song_info["artist"]}, current_double: {current_pystr}')
+        
+        first_run = False
+        gc.collect()
+        pythoncom.CoUninitialize()
     except:
-        print(f"Error while updating Discord: {song_id}")
-        pass
-    
-    if first_run:
-        print(f'{song_info["title"]} - {song_info["artist"]}, current_double: {current_pystr}')
-    
-    first_run = False
-    gc.collect()
-    pythoncom.CoUninitialize()
+        print("Error while updating.")
 
 
 # calls the update function every second, ignore how long the actual update takes
