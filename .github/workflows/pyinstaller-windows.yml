@@ -22,5 +22,5 @@ jobs:
 
     - uses: actions/upload-artifact@v2
       with:
-        name: main.exe
+        name: Netease Cloudmusic Discord RPC.exe
         path: src/dist/windows
