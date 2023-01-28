@@ -12,8 +12,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Generate version.txt for PyInstaller
-      run: create-version-file src/version.yml --outfile src/version.txt
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - run: pip install pyinstaller
+    - run: create-version-file src/version.yml --outfile src/version.txt
     - name: PyInstaller Windows
       uses: sayyid5416/pyinstaller@main
       with:
