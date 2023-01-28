@@ -27,13 +27,13 @@ For older versions (2.10.2 and below), you can checkout this project: https://gi
 
 程序不会显示任何窗口，而是在后台保持运行。
 
-程序必须以UAC模式运行（管理员权限）才能正常工作。
+程序必须以UAC模式运行（管理员权限）才能正常工作。请右键exe文件，点击属性，在兼容性页面里勾选“以管理员身份运行”。
 
 Download the executable binary (exe) from the Release page, Keep the exe running.
 
 The program will not show any window and will run in the background.
 
-The program must be opened in UAC mode (Administrator permission) to work properly.
+The program must be opened in UAC mode (Administrator permission) to work properly. Please right-click on the exe, click Properties, and check "Run as administrator" on the Compatibility page.
 
 # 构建 Building
 你需要 / You need:
