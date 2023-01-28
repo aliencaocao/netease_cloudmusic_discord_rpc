@@ -19,6 +19,3 @@ jobs:
         spec: 'src/main.spec'
         requirements: 'src/requirements.txt'
         upload_exe_with_name: 'Netease Cloudmusic Discord RPC.exe'
-
-    - name: ls
-      run: ls -lah src/dist/
