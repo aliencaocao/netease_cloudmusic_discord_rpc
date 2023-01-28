@@ -18,38 +18,9 @@ __version__ = '0.2.0'
 supported_cloudmusic_version = '2.10.6.3993'
 
 current_offset = 0xA65568
-maxlen_offset = 0xB16438  # TODO: does not work
 song_array_offset = 0xB15654
 
-print(
-    f'Netease Cloud Music Discord RPC v{__version__}, Supporting NCM version: {supported_cloudmusic_version}'
-)
-
-user32 = ctypes.windll.user32
-WNDENUMPROC = ctypes.WINFUNCTYPE(
-    wintypes.BOOL,
-    wintypes.HWND,  # _In_ hWnd
-    wintypes.LPARAM, )  # _In_ lParam
-
-user32.EnumWindows.argtypes = (
-    WNDENUMPROC,  # _In_ lpEnumFunc
-    wintypes.LPARAM,)  # _In_ lParam
-
-user32.IsWindowVisible.argtypes = (
-    wintypes.HWND,)  # _In_ hWnd
-
-user32.GetWindowThreadProcessId.restype = wintypes.DWORD
-user32.GetWindowThreadProcessId.argtypes = (
-    wintypes.HWND,  # _In_      hWnd
-    wintypes.LPDWORD,)  # _Out_opt_ lpdwProcessId
-
-user32.GetWindowTextLengthW.argtypes = (
-    wintypes.HWND,)  # _In_ hWnd
-
-user32.GetWindowTextW.argtypes = (
-    wintypes.HWND,  # _In_  hWnd
-    wintypes.LPWSTR,  # _Out_ lpString
-    ctypes.c_int,)  # _In_  nMaxCount
+print(f'Netease Cloud Music Discord RPC v{__version__}, Supporting NCM version: {supported_cloudmusic_version}')
 
 
 class RepeatedTimer:
@@ -73,9 +44,11 @@ class RepeatedTimer:
         self.event.set()
         self.thread.join()
 
+
 def sec_to_str(sec) -> str:
     m, s = divmod(sec, 60)
     return f'{int(m):02d}:{int(s):02d}'
+
 
 client_id = '1065646978672902144'
 RPC = Presence(client_id)
@@ -87,7 +60,9 @@ start_time = time.time()
 first_run = True
 
 song_info_cache = {}
-def get_song_info_from_netease(song_id: str) -> str:
+
+
+def get_song_info_from_netease(song_id: str) -> bool:
     try:
         song_info = {}
         url = f'https://music.163.com/song?id={song_id}'
@@ -115,7 +90,8 @@ def get_song_info_from_netease(song_id: str) -> str:
         print(f"Error while reading from remote: {song_id}")
         return False
 
-def get_song_info_from_local(song_id: str) -> str:
+
+def get_song_info_from_local(song_id: str) -> bool:
     filepath = path.join(path.expandvars('%LOCALAPPDATA%'), 'Netease/CloudMusic/webdata/file/history')
     if not path.exists(filepath):
         return False
@@ -146,6 +122,7 @@ def get_song_info(song_id: str) -> str:
         if not get_song_info_from_local(song_id):
             get_song_info_from_netease(song_id)
     return song_info_cache[song_id]
+
 
 def update():
     global first_run
@@ -189,14 +166,14 @@ def update():
         close_process(process)
         try:
             RPC.update(pid=pid, details=f'{song_info["title"]}', state=f'{song_info["artist"]} | {song_info["album"]}', large_image=song_info["cover"],
-                large_text=song_info["album"], start=int(time.time() - current_double))
+                       large_text=song_info["album"], start=int(time.time() - current_double))
         except:
             print(f"Error while updating Discord: {song_id}")
             pass
 
         if first_run:
             print(f'{song_info["title"]} - {song_info["artist"]}, current_double: {current_pystr}')
-        
+
         first_run = False
         gc.collect()
         pythoncom.CoUninitialize()

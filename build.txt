@@ -1,1 +1,1 @@
-pyinstaller --log-level DEBUG -F --distpath ./ --clean --noconfirm main.py
+pyinstaller --log-level DEBUG -F --distpath ./ --clean --noconfirm src/main.py

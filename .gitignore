@@ -1,5 +1,6 @@
 .idea
 *.exe
+*.spec
 build/
 cheat_table/
 dev/
