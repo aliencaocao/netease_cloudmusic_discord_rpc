@@ -1,3 +1,5 @@
 .idea
 *.exe
 build/
+cheat_table/
+dev/
