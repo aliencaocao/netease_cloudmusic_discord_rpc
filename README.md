@@ -45,6 +45,6 @@ The program must be opened in UAC mode (Administrator permission) to work proper
 Run the commands in build.txt.
 
 # Debugging mode
-Make a file named `Make a file named` in working directory, and the program will run in debugging mode and print logs to this file.
+Make a file named `debug.log` in working directory, and the program will run in debugging mode and print logs to this file.
 
 Inspired by https://github.com/Kxnrl/NetEase-Cloud-Music-DiscordRPC
