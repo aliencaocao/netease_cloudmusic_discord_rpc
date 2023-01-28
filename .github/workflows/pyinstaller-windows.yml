@@ -15,7 +15,7 @@ jobs:
     - uses: actions/setup-python@v4
       with:
         python-version: '3.11'
-    - run: pip install pyinstaller
+    - run: pip install pyinstaller-versionfile
     - run: create-version-file src/version.yml --outfile src/version.txt
     - name: PyInstaller Windows
       uses: sayyid5416/pyinstaller@main
