@@ -1,6 +1,7 @@
 .idea
 *.exe
 *.spec
+debug.log
 build/
 cheat_table/
 dev/

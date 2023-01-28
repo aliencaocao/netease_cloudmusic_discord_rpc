@@ -37,11 +37,14 @@ The program must be opened in UAC mode (Administrator permission) to work proper
 
 # 构建 Building
 你需要 / You need:
-- Python 3.6+
+- Python 3.6 - 3.11
 - `pip install -r requirements.txt`
 
 运行build.txt里面的命令即可。
 
 Run the commands in build.txt.
+
+# Debugging mode
+Make a file named `Make a file named` in working directory, and the program will run in debugging mode and print logs to this file.
 
 Inspired by https://github.com/Kxnrl/NetEase-Cloud-Music-DiscordRPC

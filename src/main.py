@@ -1,4 +1,5 @@
 import gc
+import sys
 import time
 from threading import Event, Thread
 import ctypes
@@ -19,6 +20,9 @@ supported_cloudmusic_version = '2.10.6.3993'
 
 current_offset = 0xA65568
 song_array_offset = 0xB15654
+
+if path.isfile('debug.log'):
+    sys.stdout = open('debug.log', 'a')
 
 print(f'Netease Cloud Music Discord RPC v{__version__}, Supporting NCM version: {supported_cloudmusic_version}')
 

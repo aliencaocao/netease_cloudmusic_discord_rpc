@@ -13,14 +13,12 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: PyInstaller Windows
-      uses: JackMcKew/pyinstaller-action-windows@main
+      uses: sayyid5416/pyinstaller@main
       with:
-        path: src
+        python_ver: '3.11'
+        spec: 'src/main.spec'
+        requirements: 'src/requirements.txt'
+        upload_exe_with_name: 'Netease Cloudmusic Discord RPC.exe'
 
     - name: ls
       run: ls -lah src/dist/
-
-    - uses: actions/upload-artifact@v2
-      with:
-        name: Netease Cloudmusic Discord RPC.exe
-        path: src/dist/windows
