@@ -1,0 +1,2 @@
+current offset: scan for double in cloudmusic.dll (seconds)
+song_array: play 爱你没错 by 雷小宝 and run the brute force scirpt in test.ipynb

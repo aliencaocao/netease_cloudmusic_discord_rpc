@@ -1,30 +1,26 @@
 import gc
+import re
 import sys
 import time
-from threading import Event, Thread
-import ctypes
-from ctypes import wintypes
-import wmi
-import pythoncom
-from win32com.client import Dispatch
-from pypresence import Presence
-from pyMeow import open_process, close_process, get_module, r_float64, r_bytes, r_uint
-from typing import Tuple
 import urllib.request
-import re
 from os import path
-import json
+from threading import Event, Thread
 
-__version__ = '0.2.0'
-supported_cloudmusic_version = '2.10.6.3993'
+import orjson
+import pythoncom
+import wmi
+from pyMeow import close_process, get_module, open_process, r_bytes, r_float64, r_uint
+from pypresence import Presence
+from win32com.client import Dispatch
 
-current_offset = 0xA65568
-song_array_offset = 0xB15654
+__version__ = '0.2.1'
+offsets = {'2.10.6.3993': {'current': 0xA65568, 'song_array': 0xB15654},
+           '2.10.7.4239': {'current': 0xA66568, 'song_array': 0xB16974}}
 
 if path.isfile('debug.log'):
     sys.stdout = open('debug.log', 'a')
 
-print(f'Netease Cloud Music Discord RPC v{__version__}, Supporting NCM version: {supported_cloudmusic_version}')
+print(f'Netease Cloud Music Discord RPC v{__version__}, Supporting NCM version: {", ".join(offsets.keys())}')
 
 
 class RepeatedTimer:
@@ -101,7 +97,7 @@ def get_song_info_from_local(song_id: str) -> bool:
         return False
     try:
         with(open(filepath, 'r', encoding='utf-8')) as f:
-            history = json.load(f)
+            history = orjson.loads(f.read())
             song_info_raw = next(x for x in history if str(x['track']['id']) == song_id)
             if not song_info_raw:
                 return False
@@ -112,7 +108,6 @@ def get_song_info_from_local(song_id: str) -> bool:
                 'artist': '/'.join([x['name'] for x in song_info_raw['track']['artists']]),
                 'title': song_info_raw['track']['name'],
             }
-
             song_info_cache[song_id] = song_info
         return True
     except:
@@ -143,10 +138,11 @@ def update():
         else:
             process = process[0]
             ver_parser = Dispatch('Scripting.FileSystemObject')
-            info = ver_parser.GetFileVersion(process.ExecutablePath)
-            if info != supported_cloudmusic_version:
-                raise RuntimeError(
-                    f'This version is not supported yet: {info}. Supported version: {supported_cloudmusic_version}')
+            ver = ver_parser.GetFileVersion(process.ExecutablePath)
+            if ver not in offsets:
+                raise RuntimeError(f'This version is not supported yet: {ver}. Supported version: {", ".join(offsets.keys())}')
+            else:
+                current_offset, song_array_offset = offsets[ver].values()
             pid = process.ole_object.ProcessId
             if first_run:
                 print(f'Found process: {pid}')
@@ -181,8 +177,8 @@ def update():
         first_run = False
         gc.collect()
         pythoncom.CoUninitialize()
-    except:
-        print("Error while updating.")
+    except Exception as e:
+        print("Error while updating: ", e)
 
 
 # calls the update function every second, ignore how long the actual update takes
