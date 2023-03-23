@@ -166,10 +166,10 @@ def update():
         close_process(process)
         try:
             RPC.update(pid=pid, details=f'{song_info["title"]}', state=f'{song_info["artist"]} | {song_info["album"]}', large_image=song_info["cover"],
-                       large_text=song_info["album"], start=int(time.time() - current_double), 
+                       large_text=song_info["album"].center(2), start=int(time.time() - current_double), 
                        buttons=[{"label": "Listen on Netease", "url": f"https://music.163.com/#/song?id={song_id}"}])
-        except:
-            print(f"Error while updating Discord: {song_id}")
+        except Exception as e:
+            print("Error while updating Discord:", e)
             pass
 
         if first_run:
