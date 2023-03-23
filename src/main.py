@@ -115,7 +115,7 @@ def get_song_info_from_local(song_id: str) -> bool:
         return False
 
 
-def get_song_info(song_id: str) -> str:
+def get_song_info(song_id: str) -> dict[str, str]:
     global song_info_cache
     if song_id not in song_info_cache:
         if not get_song_info_from_local(song_id):
