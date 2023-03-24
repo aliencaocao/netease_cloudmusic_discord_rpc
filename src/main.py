@@ -90,8 +90,8 @@ def get_song_info_from_netease(song_id: str) -> bool:
 
             song_info_cache[song_id] = song_info
         return True
-    except:
-        print(f"Error while reading from remote: {song_id}")
+    except Exception as e:
+        print("Error while reading from remote:", e)
         return False
 
 
@@ -114,8 +114,8 @@ def get_song_info_from_local(song_id: str) -> bool:
             }
             song_info_cache[song_id] = song_info
         return True
-    except:
-        print(f"Error while reading from local history file: {song_id}")
+    except Exception as e:
+        print("Error while reading from local history file:", e)
         return False
 
 
