@@ -5,6 +5,7 @@ import time
 import urllib.request
 from os import path
 from threading import Event, Thread
+from typing import Callable
 
 import orjson
 import pythoncom
@@ -25,7 +26,7 @@ print(f'Netease Cloud Music Discord RPC v{__version__}, Supporting NCM version: 
 
 
 class RepeatedTimer:
-    def __init__(self, interval, function):
+    def __init__(self, interval: int, function: Callable[[], None]):
         self.interval = interval
         self.function = function
         self.start = time.time()
@@ -62,12 +63,12 @@ first_run = True
 last_id = ''
 last_int = 0
 
-song_info_cache = {}
+song_info_cache = {'': {'': ''}}
 
 
 def get_song_info_from_netease(song_id: str) -> bool:
     try:
-        song_info = {}
+        song_info = {'': ''}
         url = f'https://music.163.com/song?id={song_id}'
         with urllib.request.urlopen(url) as response:
             html = response.read().decode('utf-8')
@@ -79,7 +80,7 @@ def get_song_info_from_netease(song_id: str) -> bool:
             song_info["album"] = re_album.findall(html)[0]
 
             re_duration = re.compile(r'<meta property="music:duration" content="(.+)"')
-            song_info["duration"] = int(re_duration.findall(html)[0])
+            song_info["duration"] = re_duration.findall(html)[0]
 
             re_artist = re.compile(r'<meta property="og:music:artist" content="(.+)"')
             song_info["artist"] = re_artist.findall(html)[0]
