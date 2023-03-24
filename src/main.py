@@ -160,7 +160,7 @@ def update():
         current_pystr = sec_to_str(current_int)
 
         songid_array = r_uint(process, module_base + song_array_offset)
-        song_id = r_bytes(process, songid_array, 0x14).decode('utf-16')
+        song_id = r_bytes(process, songid_array, 0x14).decode('utf-16').split('_')[0] # Song ID can be shorter than 10 digits.
 
         close_process(process)
 
