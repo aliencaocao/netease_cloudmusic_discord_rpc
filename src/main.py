@@ -15,7 +15,8 @@ from pypresence import Presence
 from win32com.client import Dispatch
 
 __version__ = '0.2.1'
-offsets = {'2.10.6.3993': {'current': 0xA65568, 'song_array': 0xB15654},
+offsets = {'2.10.5.3929': {'current': 0xA47548, 'song_array': 0xAF6FC8},
+           '2.10.6.3993': {'current': 0xA65568, 'song_array': 0xB15654},
            '2.10.7.4239': {'current': 0xA66568, 'song_array': 0xB16974}}
 interval = 1
 
