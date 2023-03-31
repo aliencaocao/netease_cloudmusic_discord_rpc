@@ -19,8 +19,11 @@ jobs:
     - name: Create version.txt for PyInstaller
       working-directory: ./src
       run: create-version-file version.yml --outfile version.txt
-      run: pwd
-      run: ls
+    - name: Debug version.txt location
+      run: |
+        echo "Working directory: $(pwd)"
+        echo "Contents of current directory: $(ls)"
+        echo "Contents of ./src directory: $(ls ./src)"
     - name: PyInstaller Windows
       uses: sayyid5416/pyinstaller@main
       with:
