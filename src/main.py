@@ -3,6 +3,7 @@ import re
 import sys
 import time
 import urllib.request
+from enum import IntFlag, auto
 from os import path
 from threading import Event, Thread
 from typing import Callable
@@ -48,6 +49,12 @@ class RepeatedTimer:
         self.thread.join()
 
 
+class Status(IntFlag):
+    playing = auto() # Song id unchanged and time += interval
+    paused = auto()  # Song id unchanged and time unchanged
+    changed = auto() # Song id changed or time changed manually
+
+
 def sec_to_str(sec: int) -> str:
     m, s = divmod(sec, 60)
     return f'{m:02d}:{s:02d}'
@@ -61,6 +68,7 @@ print('RPC Launched.\nThe following info will only be printed only once for conf
 
 start_time = time.time()
 first_run = True
+last_status = Status.changed
 last_id = ''
 last_int = 0
 
@@ -130,6 +138,7 @@ def get_song_info(song_id: str) -> dict[str, str]:
 
 def update():
     global first_run
+    global last_status
     global last_id
     global last_int
 
@@ -170,16 +179,26 @@ def update():
             # Song ID is not ready yet.
             return
 
-        if song_id == last_id and current_int == last_int + interval:
-            # Nothing changed.
-            last_int += interval
-            return
+        status = Status.playing if song_id == last_id and current_int == last_int + interval else \
+                 Status.paused if song_id == last_id and current_int == last_int else \
+                 Status.changed
+
+        if status == Status.playing:
+            if last_status != Status.paused: # Nothing changed
+                last_int = current_int
+                last_status = Status.playing
+                return
+        elif status == Status.paused:
+            if last_status == Status.paused: # Nothing changed
+                return
+            else:
+                print('Paused')
 
         song_info = get_song_info(song_id)
 
         try:
             RPC.update(pid=pid, details=f'{song_info["title"]}', state=f'{song_info["artist"]} | {song_info["album"]}', large_image=song_info["cover"],
-                       large_text=song_info["album"].center(2), start=int(time.time() - current_int), 
+                       large_text=song_info["album"].center(2), start=int(time.time() - current_int) if status != Status.paused else None,
                        buttons=[{"label": "Listen on Netease", "url": f"https://music.163.com/#/song?id={song_id}"}])
         except Exception as e:
             print("Error while updating Discord:", e)
@@ -187,8 +206,10 @@ def update():
 
         last_id = song_id
         last_int = current_int
-        
-        print(f'{song_info["title"]} - {song_info["artist"]}, {current_pystr}')
+        last_status = status
+
+        if status != Status.paused:
+            print(f'{song_info["title"]} - {song_info["artist"]}, {current_pystr}')
 
         first_run = False
         gc.collect()
