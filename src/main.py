@@ -15,11 +15,19 @@ from pyMeow import close_process, get_module, open_process, r_bytes, r_float64, 
 from pypresence import Presence
 from win32com.client import Dispatch
 
-__version__ = '0.2.1'
+__version__ = '0.2.2'
 offsets = {'2.10.5.3929': {'current': 0xA47548, 'song_array': 0xAF6FC8},
            '2.10.6.3993': {'current': 0xA65568, 'song_array': 0xB15654},
            '2.10.7.4239': {'current': 0xA66568, 'song_array': 0xB16974}}
 interval = 1
+
+# regexes
+re_song_id = re.compile(r'(\d+)')
+re_img = re.compile(r'<meta property="og:image" content="(.+)"')
+re_album = re.compile(r'<meta property="og:music:album" content="(.+)"')
+re_duration = re.compile(r'<meta property="music:duration" content="(.+)"')
+re_artist = re.compile(r'<meta property="og:music:artist" content="(.+)"')
+re_title = re.compile(r'<meta property="og:title" content="(.+)"')
 
 if path.isfile('debug.log'):
     sys.stdout = open('debug.log', 'a')
@@ -50,9 +58,9 @@ class RepeatedTimer:
 
 
 class Status(IntFlag):
-    playing = auto() # Song id unchanged and time += interval
+    playing = auto()  # Song id unchanged and time += interval
     paused = auto()  # Song id unchanged and time unchanged
-    changed = auto() # Song id changed or time changed manually
+    changed = auto()  # Song id changed or time changed manually
 
 
 def sec_to_str(sec: int) -> str:
@@ -60,11 +68,11 @@ def sec_to_str(sec: int) -> str:
     return f'{m:02d}:{s:02d}'
 
 
-client_id = '1065646978672902144'
+client_id = '1045242932128645180'
 RPC = Presence(client_id)
 RPC.connect()
 
-print('RPC Launched.\nThe following info will only be printed only once for confirmation. They will continue being updated to Discord.')
+print('RPC Launched.')
 
 start_time = time.time()
 first_run = True
@@ -81,22 +89,11 @@ def get_song_info_from_netease(song_id: str) -> bool:
         url = f'https://music.163.com/song?id={song_id}'
         with urllib.request.urlopen(url) as response:
             html = response.read().decode('utf-8')
-
-            re_img = re.compile(r'<meta property="og:image" content="(.+)"')
             song_info["cover"] = re_img.findall(html)[0]
-
-            re_album = re.compile(r'<meta property="og:music:album" content="(.+)"')
             song_info["album"] = re_album.findall(html)[0]
-
-            re_duration = re.compile(r'<meta property="music:duration" content="(.+)"')
             song_info["duration"] = re_duration.findall(html)[0]
-
-            re_artist = re.compile(r'<meta property="og:music:artist" content="(.+)"')
             song_info["artist"] = re_artist.findall(html)[0]
-
-            re_title = re.compile(r'<meta property="og:title" content="(.+)"')
             song_info["title"] = re_title.findall(html)[0]
-
             song_info_cache[song_id] = song_info
         return True
     except Exception as e:
@@ -170,26 +167,25 @@ def update():
         current_pystr = sec_to_str(current_int)
 
         songid_array = r_uint(process, module_base + song_array_offset)
-        song_id = r_bytes(process, songid_array, 0x14).decode('utf-16').split('_')[0] # Song ID can be shorter than 10 digits.
+        song_id = r_bytes(process, songid_array, 0x14).decode('utf-16').split('_')[0]  # Song ID can be shorter than 10 digits.
 
         close_process(process)
 
-        re_song_id = re.compile(r'(\d+)')
         if not re_song_id.match(song_id):
             # Song ID is not ready yet.
             return
 
         status = Status.playing if song_id == last_id and current_int == last_int + interval else \
-                 Status.paused if song_id == last_id and current_int == last_int else \
-                 Status.changed
+            Status.paused if song_id == last_id and current_int == last_int else \
+                Status.changed
 
         if status == Status.playing:
-            if last_status != Status.paused: # Nothing changed
+            if last_status != Status.paused:  # Nothing changed
                 last_int = current_int
                 last_status = Status.playing
                 return
         elif status == Status.paused:
-            if last_status == Status.paused: # Nothing changed
+            if last_status == Status.paused:  # Nothing changed
                 return
             else:
                 print('Paused')
@@ -198,7 +194,7 @@ def update():
 
         try:
             RPC.update(pid=pid, details=f'{song_info["title"]}', state=f'{song_info["artist"]} | {song_info["album"]}', large_image=song_info["cover"],
-                       large_text=song_info["album"].center(2), start=int(time.time() - current_int) if status != Status.paused else None,
+                       large_text=song_info["album"].center(2), start=int(time.time() - current_int) if status != Status.paused else None, small_image='play' if status != Status.paused else 'pause',
                        buttons=[{"label": "Listen on Netease", "url": f"https://music.163.com/#/song?id={song_id}"}])
         except Exception as e:
             print("Error while updating Discord:", e)
