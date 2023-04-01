@@ -25,7 +25,7 @@ jobs:
         echo "Contents of current directory: $(ls)"
         echo "Contents of ./src directory: $(ls ./src)"
     - name: PyInstaller Windows
-      uses: sayyid5416/pyinstaller@main
+      uses: aliencaocao/pyinstaller@main
       with:
         python_ver: '3.11'
         spec: 'src/main.spec'
