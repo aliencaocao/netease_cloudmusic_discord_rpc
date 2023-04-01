@@ -2,9 +2,9 @@ import gc
 import re
 import sys
 import time
-import urllib.request
 from enum import IntFlag, auto
 from os import path
+from pyncm import apis
 from threading import Event, Thread
 from typing import Callable
 
@@ -23,11 +23,6 @@ interval = 1
 
 # regexes
 re_song_id = re.compile(r'(\d+)')
-re_img = re.compile(r'<meta property="og:image" content="(.+)"')
-re_album = re.compile(r'<meta property="og:music:album" content="(.+)"')
-re_duration = re.compile(r'<meta property="music:duration" content="(.+)"')
-re_artist = re.compile(r'<meta property="og:music:artist" content="(.+)"')
-re_title = re.compile(r'<meta property="og:title" content="(.+)"')
 
 if path.isfile('debug.log'):
     sys.stdout = open('debug.log', 'a')
@@ -85,16 +80,17 @@ song_info_cache = {'': {'': ''}}
 
 def get_song_info_from_netease(song_id: str) -> bool:
     try:
-        song_info = {'': ''}
-        url = f'https://music.163.com/song?id={song_id}'
-        with urllib.request.urlopen(url) as response:
-            html = response.read().decode('utf-8')
-            song_info["cover"] = re_img.findall(html)[0]
-            song_info["album"] = re_album.findall(html)[0]
-            song_info["duration"] = re_duration.findall(html)[0]
-            song_info["artist"] = re_artist.findall(html)[0]
-            song_info["title"] = re_title.findall(html)[0]
-            song_info_cache[song_id] = song_info
+        song_info_raw = apis.track.GetTrackDetail([song_id])['songs'][0]
+        if not song_info_raw:
+            return False
+        song_info = {
+            'cover': song_info_raw['al']['picUrl'],
+            'album': song_info_raw['al']['name'],
+            'duration': song_info_raw['dt'] / 1000,
+            'artist': '/'.join([x['name'] for x in song_info_raw['ar']]),
+            'title': song_info_raw['name']
+        }
+        song_info_cache[song_id] = song_info
         return True
     except Exception as e:
         print("Error while reading from remote:", e)
@@ -108,15 +104,15 @@ def get_song_info_from_local(song_id: str) -> bool:
     try:
         with(open(filepath, 'r', encoding='utf-8')) as f:
             history = orjson.loads(f.read())
-            song_info_raw = next(x for x in history if str(x['track']['id']) == song_id)
+            song_info_raw = next(x for x in history if str(x['track']['id']) == song_id)['track']
             if not song_info_raw:
                 return False
             song_info = {
-                'cover': song_info_raw['track']['album']['picUrl'],
-                'album': song_info_raw['track']['album']['name'],
-                'duration': song_info_raw['track']['duration'] / 1000,
-                'artist': '/'.join([x['name'] for x in song_info_raw['track']['artists']]),
-                'title': song_info_raw['track']['name'],
+                'cover': song_info_raw['album']['picUrl'],
+                'album': song_info_raw['album']['name'],
+                'duration': song_info_raw['duration'] / 1000,
+                'artist': '/'.join([x['name'] for x in song_info_raw['artists']]),
+                'title': song_info_raw['name'],
             }
             song_info_cache[song_id] = song_info
         return True
@@ -193,8 +189,14 @@ def update():
         song_info = get_song_info(song_id)
 
         try:
-            RPC.update(pid=pid, details=f'{song_info["title"]}', state=f'{song_info["artist"]} | {song_info["album"]}', large_image=song_info["cover"],
-                       large_text=song_info["album"].center(2), start=int(time.time() - current_int) if status != Status.paused else None, small_image='play' if status != Status.paused else 'pause',
+            RPC.update(pid=pid,
+                       details=song_info["title"],
+                       state=f'{song_info["artist"]} | {song_info["album"]}',
+                       large_image=song_info["cover"],
+                       large_text=song_info["album"].center(2),
+                       small_image='play' if status != Status.paused else 'pause',
+                       small_text="Playing" if status != Status.paused else "Paused",
+                       start=int(time.time() - current_int) if status != Status.paused else None,
                        buttons=[{"label": "Listen on Netease", "url": f"https://music.163.com/#/song?id={song_id}"}])
         except Exception as e:
             print("Error while updating Discord:", e)
