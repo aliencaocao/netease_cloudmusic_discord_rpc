@@ -47,47 +47,23 @@ the
 Windows
 client.
 
-目前支持网易云音乐2.10.5.3929（微软商店版本）,
-2.10.6
-build
-200601,
-2.10.7
-build
-200847,
+目前支持版本：  
+2.7.1 build 198277（微软商店版本）  
+2.10.5 build 200537（微软商店版本）  
+2.10.6 build 200601  
+2.10.7 build 200847  
 还会继续支持未来的新版本。
 
-Currently
-supports
-NetEase
-Cloudmusic
-Windows
-2.10.5.3929 (
-Microsoft
-Store
-version),
-2.10.6
-build
-200601,
-2.10.7
-build
-200847.
-Support
-for
-future
-versions
-will
-be
-added
-once
-they
-are
-released.
+Currently supported versions:  
+2.7.1 build 198277 (Microsoft Store version)  
+2.10.5 build 200537 (Microsoft Store version)  
+2.10.6 build 200601  
+2.10.7 build 200847  
+Support for future versions will be added.
 
-旧版本(
-2.10.2及以下)
-可以使用这个项目：https://github.com/Kxnrl/NetEase-Cloud-Music-DiscordRPC
+旧版本（2.10.3及以下）可以使用这个项目：https://github.com/Kxnrl/NetEase-Cloud-Music-DiscordRPC
 
-For older versions (2.10.2 and below), you can checkout this project: https://github.com/Kxnrl/NetEase-Cloud-Music-DiscordRPC
+For older versions (2.10.3 and below), you can checkout this project: https://github.com/Kxnrl/NetEase-Cloud-Music-DiscordRPC
 
 效果图 / Demo
 
