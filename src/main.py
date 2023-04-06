@@ -4,7 +4,6 @@ import sys
 import time
 from enum import IntFlag, auto
 from os import path
-from pyncm import apis
 from threading import Event, Thread
 from typing import Callable
 
@@ -12,10 +11,11 @@ import orjson
 import pythoncom
 import wmi
 from pyMeow import close_process, get_module, open_process, r_bytes, r_float64, r_uint
+from pyncm import apis
 from pypresence import Presence
 from win32com.client import Dispatch
 
-__version__ = '0.2.2'
+__version__ = '0.2.3'
 offsets = {'2.7.1.1669': {'current': 0x8C8AF8, 'song_array': 0x8E9044},
            '2.10.5.3929': {'current': 0xA47548, 'song_array': 0xAF6FC8},
            '2.10.6.3993': {'current': 0xA65568, 'song_array': 0xB15654},
@@ -76,7 +76,7 @@ last_status = Status.changed
 last_id = ''
 last_int = 0
 
-song_info_cache = {'': {'': ''}}
+song_info_cache: dict[str, dict[str, str]] = {'': {'': ''}}
 
 
 def get_song_info_from_netease(song_id: str) -> bool:
@@ -141,7 +141,7 @@ def update():
         wmic = wmi.WMI()
         process = wmic.Win32_Process(name="cloudmusic.exe")
         process = [p for p in process if '--type=' not in p.ole_object.CommandLine]
-        if not process:  # if the app isnt running, do nothing
+        if not process:  # if the app isn't running, do nothing
             return
         elif len(process) != 1:
             raise RuntimeError('Multiple candidate processes found!')

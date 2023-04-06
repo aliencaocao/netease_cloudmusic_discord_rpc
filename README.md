@@ -63,9 +63,21 @@ Support for future versions will be added.
 
 旧版本（2.10.3及以下）可以使用这个项目：https://github.com/Kxnrl/NetEase-Cloud-Music-DiscordRPC
 
-For older versions (2.10.3 and below), you can checkout this project: https://github.com/Kxnrl/NetEase-Cloud-Music-DiscordRPC
+For
+older
+versions (
+2.10.3
+and
+below),
+you
+can
+check
+out
+this
+project: https://github.com/Kxnrl/NetEase-Cloud-Music-DiscordRPC
 
-效果图 / Demo
+效果图 /
+Demo
 
 ![demo](demo.png)
 
