@@ -8,12 +8,11 @@ from threading import Event, Thread
 from typing import Callable
 
 import orjson
-import pythoncom
 import wmi
-from pyMeow import close_process, get_module, open_process, r_bytes, r_float64, r_uint
+from pyMeow import close_process, get_module, get_process_name, open_process, pid_exists, r_bytes, r_float64, r_uint
 from pyncm import apis
 from pypresence import Presence
-from win32com.client import Dispatch
+from win32api import HIWORD, LOWORD, GetFileVersionInfo
 
 __version__ = '0.2.3'
 offsets = {'2.7.1.1669': {'current': 0x8C8AF8, 'song_array': 0x8E9044},
@@ -70,8 +69,9 @@ RPC.connect()
 
 print('RPC Launched.')
 
-start_time = time.time()
 first_run = True
+pid = 0
+version = ''
 last_status = Status.changed
 last_id = ''
 last_float = 0.0
@@ -130,32 +130,46 @@ def get_song_info(song_id: str) -> dict[str, str]:
     return song_info_cache[song_id]
 
 
+def find_process() -> tuple[int, str]:
+    print('Searching for process...')
+    wmic = wmi.WMI()
+    process_list = wmic.Win32_Process(name="cloudmusic.exe")
+    process_list = [p for p in process_list if '--type=' not in p.CommandLine]
+    if not process_list:
+        return 0, ''
+    if len(process_list) > 1:
+        raise RuntimeError('Multiple candidate processes found!')
+    process = process_list[0]
+
+    ver_info = GetFileVersionInfo(process.ExecutablePath, '\\')
+    ver = f"{HIWORD(ver_info['FileVersionMS'])}.{LOWORD(ver_info['FileVersionMS'])}." \
+          f"{HIWORD(ver_info['FileVersionLS'])}.{LOWORD(ver_info['FileVersionLS'])}"
+
+    return process.ProcessId, ver
+
+
 def update():
     global first_run
+    global pid
+    global version
     global last_status
     global last_id
     global last_float
 
     try:
-        pythoncom.CoInitialize()
-        wmic = wmi.WMI()
-        process = wmic.Win32_Process(name="cloudmusic.exe")
-        process = [p for p in process if '--type=' not in p.ole_object.CommandLine]
-        if not process:  # if the app isn't running, do nothing
-            return
-        elif len(process) != 1:
-            raise RuntimeError('Multiple candidate processes found!')
-        else:
-            process = process[0]
-            ver_parser = Dispatch('Scripting.FileSystemObject')
-            ver = ver_parser.GetFileVersion(process.ExecutablePath)
-            if ver not in offsets:
-                raise RuntimeError(f'This version is not supported yet: {ver}. Supported version: {", ".join(offsets.keys())}')
-            else:
-                current_offset, song_array_offset = offsets[ver].values()
-            pid = process.ole_object.ProcessId
-            if first_run:
-                print(f'Found process: {pid}')
+        if not pid_exists(pid) or get_process_name(pid) != 'cloudmusic.exe':
+            pid, version = find_process()
+            if not pid:
+                # If the app isn't running, do nothing
+                return
+
+        if version not in offsets:
+            raise RuntimeError(f'This version is not supported yet: {version}. Supported version: {", ".join(offsets.keys())}')
+        current_offset, song_array_offset = offsets[version].values()
+            
+        if first_run:
+            print(f'Found process: {pid}')
+            first_run = False
 
         process = open_process(pid)
         module_base = get_module(process, 'cloudmusic.dll')['base']
@@ -205,16 +219,13 @@ def update():
             pass
 
         last_id = song_id
-        last_int = current_int
         last_float = current_float
         last_status = status
 
         if status != Status.paused:
             print(f'{song_info["title"]} - {song_info["artist"]}, {current_pystr}')
 
-        first_run = False
         gc.collect()
-        pythoncom.CoUninitialize()
     except Exception as e:
         print("Error while updating: ", e)
 
