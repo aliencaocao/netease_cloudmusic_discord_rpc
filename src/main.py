@@ -59,9 +59,9 @@ class Status(IntFlag):
     changed = auto()  # Song id changed or time changed manually
 
 
-def sec_to_str(sec: int) -> str:
+def sec_to_str(sec: float) -> str:
     m, s = divmod(sec, 60)
-    return f'{m:02d}:{s:02d}'
+    return f'{m:02.00f}:{s:05.02f}'
 
 
 client_id = '1045242932128645180'
@@ -74,7 +74,7 @@ start_time = time.time()
 first_run = True
 last_status = Status.changed
 last_id = ''
-last_int = 0
+last_float = 0.0
 
 song_info_cache: dict[str, dict[str, str]] = {'': {'': ''}}
 
@@ -134,7 +134,7 @@ def update():
     global first_run
     global last_status
     global last_id
-    global last_int
+    global last_float
 
     try:
         pythoncom.CoInitialize()
@@ -160,8 +160,8 @@ def update():
         process = open_process(pid)
         module_base = get_module(process, 'cloudmusic.dll')['base']
 
-        current_int = int(r_float64(process, module_base + current_offset))
-        current_pystr = sec_to_str(current_int)
+        current_float = r_float64(process, module_base + current_offset)
+        current_pystr = sec_to_str(current_float)
 
         songid_array = r_uint(process, module_base + song_array_offset)
         song_id = r_bytes(process, songid_array, 0x14).decode('utf-16').split('_')[0]  # Song ID can be shorter than 10 digits.
@@ -172,13 +172,14 @@ def update():
             # Song ID is not ready yet.
             return
 
-        status = Status.playing if song_id == last_id and current_int == last_int + interval else \
-            Status.paused if song_id == last_id and current_int == last_int else \
+        # Interval should fall in (interval - 0.2, interval + 0.2)
+        status = Status.playing if song_id == last_id and abs(current_float - last_float - interval) < 0.1 else \
+            Status.paused if song_id == last_id and current_float == last_float else \
                 Status.changed
 
         if status == Status.playing:
             if last_status != Status.paused:  # Nothing changed
-                last_int = current_int
+                last_float = current_float
                 last_status = Status.playing
                 return
         elif status == Status.paused:
@@ -197,7 +198,7 @@ def update():
                        large_text=song_info["album"].center(2),
                        small_image='play' if status != Status.paused else 'pause',
                        small_text="Playing" if status != Status.paused else "Paused",
-                       start=int(time.time() - current_int) if status != Status.paused else None,
+                       start=int(time.time() - current_float) if status != Status.paused else None,
                        buttons=[{"label": "Listen on Netease", "url": f"https://music.163.com/#/song?id={song_id}"}])
         except Exception as e:
             print("Error while updating Discord:", e)
@@ -205,6 +206,7 @@ def update():
 
         last_id = song_id
         last_int = current_int
+        last_float = current_float
         last_status = status
 
         if status != Status.paused:
