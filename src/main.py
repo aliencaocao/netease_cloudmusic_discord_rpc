@@ -8,11 +8,12 @@ from threading import Event, Thread
 from typing import Callable
 
 import orjson
+import pythoncom
 import wmi
 from pyMeow import close_process, get_module, get_process_name, open_process, pid_exists, r_bytes, r_float64, r_uint
 from pyncm import apis
 from pypresence import Presence
-from win32api import HIWORD, LOWORD, GetFileVersionInfo
+from win32api import GetFileVersionInfo, HIWORD, LOWORD
 
 __version__ = '0.2.3'
 offsets = {'2.7.1.1669': {'current': 0x8C8AF8, 'song_array': 0x8E9044},
@@ -157,6 +158,7 @@ def update():
     global last_float
 
     try:
+        pythoncom.CoInitialize()
         if not pid_exists(pid) or get_process_name(pid) != 'cloudmusic.exe':
             pid, version = find_process()
             if not pid:
@@ -228,6 +230,7 @@ def update():
         gc.collect()
     except Exception as e:
         print("Error while updating: ", e)
+    pythoncom.CoUninitialize()
 
 
 # calls the update function every second, ignore how long the actual update takes
