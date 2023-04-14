@@ -15,7 +15,7 @@ from pyncm import apis
 from pypresence import Presence
 from win32api import GetFileVersionInfo, HIWORD, LOWORD
 
-__version__ = '0.2.3'
+__version__ = '0.2.4'
 offsets = {'2.7.1.1669': {'current': 0x8C8AF8, 'song_array': 0x8E9044},
            '2.10.5.3929': {'current': 0xA47548, 'song_array': 0xAF6FC8},
            '2.10.6.3993': {'current': 0xA65568, 'song_array': 0xB15654},
