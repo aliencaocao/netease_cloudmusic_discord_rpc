@@ -1,7 +1,7 @@
 # 网易云音乐 Discord Rich Presence (RPC)
 
 ## 介绍 About
-支持同步歌曲，歌手，专辑，专辑封面和目前歌曲的播放时长和状态。歌曲的总时长暂不支持显示。
+支持同步歌曲，歌手，专辑，专辑封面和目前歌曲的播放时长和状态。歌曲的总时长暂不支持显示(https://github.com/aliencaocao/netease_cloudmusic_discord_rpc/discussions/16)。
 
 Supports
 synchronizing
@@ -25,7 +25,7 @@ song
 is
 not
 supported
-yet.
+yet (https://github.com/aliencaocao/netease_cloudmusic_discord_rpc/discussions/16).
 
 纯Python写成，支持最新版网易云音乐，目前只支持Windows客户端。
 
@@ -48,10 +48,21 @@ Windows
 client.
 
 目前支持版本：  
-2.7.1 build 198277（微软商店版本）  
-2.10.5 build 200537（微软商店版本）  
-2.10.6 build 200601  
-2.10.7 build 200847  
+2.7.1
+build
+198277（微软商店版本）  
+2.10.5
+build
+200537（微软商店版本）  
+2.10.6
+build
+200601  
+2.10.7
+build
+200847  
+2.10.8
+build
+200945
 还会继续支持未来的新版本。
 
 Currently supported versions:  
@@ -59,7 +70,16 @@ Currently supported versions:
 2.10.5 build 200537 (Microsoft Store version)  
 2.10.6 build 200601  
 2.10.7 build 200847  
-Support for future versions will be added.
+2.10.8
+build
+200945
+Support
+for
+future
+versions
+will
+be
+added.
 
 旧版本（2.10.3及以下）可以使用这个项目：https://github.com/Kxnrl/NetEase-Cloud-Music-DiscordRPC
 
