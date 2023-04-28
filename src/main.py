@@ -6,7 +6,7 @@ import time
 from enum import IntFlag, auto
 from os import path
 from threading import Event, Thread
-from typing import Callable
+from typing import Callable, TypedDict
 
 import orjson
 import pythoncom
@@ -55,6 +55,14 @@ class RepeatedTimer:
         self.thread.join()
 
 
+class SongInfo(TypedDict):
+    cover: str
+    album: str
+    duration: float
+    artist: str
+    title: str
+
+
 class Status(IntFlag):
     playing = auto()  # Song id unchanged and time += interval
     paused = auto()  # Song id unchanged and time unchanged
@@ -79,7 +87,7 @@ last_status = Status.changed
 last_id = ''
 last_float = 0.0
 
-song_info_cache: dict[str, dict[str, str]] = {'': {'': ''}}
+song_info_cache: dict[str, SongInfo] = {}
 
 
 def get_song_info_from_netease(song_id: str) -> bool:
@@ -87,7 +95,7 @@ def get_song_info_from_netease(song_id: str) -> bool:
         song_info_raw = apis.track.GetTrackDetail([song_id])['songs'][0]
         if not song_info_raw:
             return False
-        song_info = {
+        song_info: SongInfo = {
             'cover': song_info_raw['al']['picUrl'],
             'album': song_info_raw['al']['name'],
             'duration': song_info_raw['dt'] / 1000,
@@ -111,7 +119,7 @@ def get_song_info_from_local(song_id: str) -> bool:
             song_info_raw = next(x for x in history if str(x['track']['id']) == song_id)['track']
             if not song_info_raw:
                 return False
-            song_info = {
+            song_info: SongInfo = {
                 'cover': song_info_raw['album']['picUrl'],
                 'album': song_info_raw['album']['name'],
                 'duration': song_info_raw['duration'] / 1000,
@@ -125,7 +133,7 @@ def get_song_info_from_local(song_id: str) -> bool:
         return False
 
 
-def get_song_info(song_id: str) -> dict[str, str]:
+def get_song_info(song_id: str) -> SongInfo:
     global song_info_cache
     if song_id not in song_info_cache:
         if not get_song_info_from_local(song_id):
