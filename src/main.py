@@ -1,3 +1,4 @@
+import asyncio
 import gc
 import re
 import sys
@@ -8,6 +9,7 @@ from threading import Event, Thread
 from typing import Callable
 
 import orjson
+import pypresence.exceptions
 import pythoncom
 import wmi
 from pyMeow import close_process, get_module, get_process_name, open_process, pid_exists, r_bytes, r_float64, r_uint
@@ -169,7 +171,7 @@ def update():
         if version not in offsets:
             raise RuntimeError(f'This version is not supported yet: {version}. Supported version: {", ".join(offsets.keys())}')
         current_offset, song_array_offset = offsets[version].values()
-            
+
         if first_run:
             print(f'Found process: {pid}')
             first_run = False
@@ -217,6 +219,9 @@ def update():
                        small_text="Playing" if status != Status.paused else "Paused",
                        start=int(time.time() - current_float) if status != Status.paused else None,
                        buttons=[{"label": "Listen on Netease", "url": f"https://music.163.com/#/song?id={song_id}"}])
+        except pypresence.exceptions.InvalidID:
+            asyncio.set_event_loop(asyncio.new_event_loop())
+            RPC.connect()
         except Exception as e:
             print("Error while updating Discord:", e)
             pass
