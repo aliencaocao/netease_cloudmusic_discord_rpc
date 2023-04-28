@@ -92,9 +92,10 @@ song_info_cache: dict[str, SongInfo] = {}
 
 def get_song_info_from_netease(song_id: str) -> bool:
     try:
-        song_info_raw = apis.track.GetTrackDetail([song_id])['songs'][0]
-        if not song_info_raw:
+        song_info_raw_list = apis.track.GetTrackDetail([song_id])['songs']
+        if not song_info_raw_list:
             return False
+        song_info_raw = song_info_raw_list[0]
         song_info: SongInfo = {
             'cover': song_info_raw['al']['picUrl'],
             'album': song_info_raw['al']['name'],
@@ -116,9 +117,10 @@ def get_song_info_from_local(song_id: str) -> bool:
     try:
         with(open(filepath, 'r', encoding='utf-8')) as f:
             history = orjson.loads(f.read())
-            song_info_raw = next(x for x in history if str(x['track']['id']) == song_id)['track']
-            if not song_info_raw:
+            song_info_raw_list = [x for x in history if str(x['track']['id']) == song_id]
+            if not song_info_raw_list:
                 return False
+            song_info_raw = song_info_raw_list[0]['track']
             song_info: SongInfo = {
                 'cover': song_info_raw['album']['picUrl'],
                 'album': song_info_raw['album']['name'],
