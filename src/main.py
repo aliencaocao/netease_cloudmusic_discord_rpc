@@ -136,6 +136,7 @@ def get_song_info(song_id: str) -> dict[str, str]:
 
 def find_process() -> tuple[int, str]:
     print('Searching for process...')
+    pythoncom.CoInitialize()
     wmic = wmi.WMI()
     process_list = wmic.Win32_Process(name="cloudmusic.exe")
     process_list = [p for p in process_list if '--type=' not in p.CommandLine]
@@ -149,6 +150,7 @@ def find_process() -> tuple[int, str]:
     ver = f"{HIWORD(ver_info['FileVersionMS'])}.{LOWORD(ver_info['FileVersionMS'])}." \
           f"{HIWORD(ver_info['FileVersionLS'])}.{LOWORD(ver_info['FileVersionLS'])}"
 
+    pythoncom.CoUninitialize()
     return process.ProcessId, ver
 
 
@@ -161,7 +163,6 @@ def update():
     global last_float
 
     try:
-        pythoncom.CoInitialize()
         if not pid_exists(pid) or get_process_name(pid) != 'cloudmusic.exe':
             pid, version = find_process()
             if not pid:
@@ -236,7 +237,6 @@ def update():
         gc.collect()
     except Exception as e:
         print("Error while updating: ", e)
-    pythoncom.CoUninitialize()
 
 
 # calls the update function every second, ignore how long the actual update takes
