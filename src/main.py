@@ -92,7 +92,7 @@ def get_song_info_from_netease(song_id: str) -> bool:
             'cover': song_info_raw['al']['picUrl'],
             'album': song_info_raw['al']['name'],
             'duration': song_info_raw['dt'] / 1000,
-            'artist': '/'.join([x['name'] for x in song_info_raw['ar']]),
+            'artist': ' / '.join([x['name'] for x in song_info_raw['ar']]),
             'title': song_info_raw['name']
         }
         song_info_cache[song_id] = song_info
