@@ -1,20 +1,21 @@
+from __future__ import annotations
+
 import asyncio
 import gc
+import os
 import re
 import sys
 import time
 from enum import IntFlag, auto
-from os import path
 from threading import Event, Thread
-from typing import Callable
+from typing import Callable, TypedDict
 
 import orjson
-import pypresence.exceptions
 import pythoncom
 import wmi
 from pyMeow import close_process, get_module, get_process_name, open_process, pid_exists, r_bytes, r_float64, r_uint
 from pyncm import apis
-from pypresence import Presence
+from pypresence import InvalidID, Presence
 from win32api import GetFileVersionInfo, HIWORD, LOWORD
 
 __version__ = '0.2.5'
@@ -28,7 +29,7 @@ interval = 1
 # regexes
 re_song_id = re.compile(r'(\d+)')
 
-if path.isfile('debug.log'):
+if os.path.isfile('debug.log'):
     sys.stdout = open('debug.log', 'a')
 
 print(f'Netease Cloud Music Discord RPC v{__version__}, Supporting NCM version: {", ".join(offsets.keys())}')
@@ -56,6 +57,14 @@ class RepeatedTimer:
         self.thread.join()
 
 
+class SongInfo(TypedDict):
+    cover: str
+    album: str
+    duration: float
+    artist: str
+    title: str
+
+
 class Status(IntFlag):
     playing = auto()  # Song id unchanged and time += interval
     paused = auto()  # Song id unchanged and time unchanged
@@ -80,19 +89,20 @@ last_status = Status.changed
 last_id = ''
 last_float = 0.0
 
-song_info_cache: dict[str, dict[str, str]] = {'': {'': ''}}
+song_info_cache: dict[str, SongInfo] = {}
 
 
 def get_song_info_from_netease(song_id: str) -> bool:
     try:
-        song_info_raw = apis.track.GetTrackDetail([song_id])['songs'][0]
-        if not song_info_raw:
+        song_info_raw_list = apis.track.GetTrackDetail([song_id])['songs']
+        if not song_info_raw_list:
             return False
-        song_info = {
+        song_info_raw = song_info_raw_list[0]
+        song_info: SongInfo = {
             'cover': song_info_raw['al']['picUrl'],
             'album': song_info_raw['al']['name'],
             'duration': song_info_raw['dt'] / 1000,
-            'artist': '/'.join([x['name'] for x in song_info_raw['ar']]),
+            'artist': ' / '.join([x['name'] for x in song_info_raw['ar']]),
             'title': song_info_raw['name']
         }
         song_info_cache[song_id] = song_info
@@ -103,16 +113,17 @@ def get_song_info_from_netease(song_id: str) -> bool:
 
 
 def get_song_info_from_local(song_id: str) -> bool:
-    filepath = path.join(path.expandvars('%LOCALAPPDATA%'), 'Netease/CloudMusic/webdata/file/history')
-    if not path.exists(filepath):
+    filepath = os.path.join(os.path.expandvars('%LOCALAPPDATA%'), 'Netease/CloudMusic/webdata/file/history')
+    if not os.path.exists(filepath):
         return False
     try:
         with(open(filepath, 'r', encoding='utf-8')) as f:
             history = orjson.loads(f.read())
-            song_info_raw = next(x for x in history if str(x['track']['id']) == song_id)['track']
-            if not song_info_raw:
+            song_info_raw_list = [x for x in history if str(x['track']['id']) == song_id]
+            if not song_info_raw_list:
                 return False
-            song_info = {
+            song_info_raw = song_info_raw_list[0]['track']
+            song_info: SongInfo = {
                 'cover': song_info_raw['album']['picUrl'],
                 'album': song_info_raw['album']['name'],
                 'duration': song_info_raw['duration'] / 1000,
@@ -126,7 +137,7 @@ def get_song_info_from_local(song_id: str) -> bool:
         return False
 
 
-def get_song_info(song_id: str) -> dict[str, str]:
+def get_song_info(song_id: str) -> SongInfo:
     global song_info_cache
     if song_id not in song_info_cache:
         if not get_song_info_from_local(song_id):
@@ -136,6 +147,7 @@ def get_song_info(song_id: str) -> dict[str, str]:
 
 def find_process() -> tuple[int, str]:
     print('Searching for process...')
+    pythoncom.CoInitialize()
     wmic = wmi.WMI()
     process_list = wmic.Win32_Process(name="cloudmusic.exe")
     process_list = [p for p in process_list if '--type=' not in p.CommandLine]
@@ -149,6 +161,7 @@ def find_process() -> tuple[int, str]:
     ver = f"{HIWORD(ver_info['FileVersionMS'])}.{LOWORD(ver_info['FileVersionMS'])}." \
           f"{HIWORD(ver_info['FileVersionLS'])}.{LOWORD(ver_info['FileVersionLS'])}"
 
+    pythoncom.CoUninitialize()
     return process.ProcessId, ver
 
 
@@ -161,7 +174,6 @@ def update():
     global last_float
 
     try:
-        pythoncom.CoInitialize()
         if not pid_exists(pid) or get_process_name(pid) != 'cloudmusic.exe':
             pid, version = find_process()
             if not pid:
@@ -211,15 +223,15 @@ def update():
 
         try:
             RPC.update(pid=pid,
-                       details=song_info["title"],
                        state=f'{song_info["artist"]} | {song_info["album"]}',
+                       details=song_info["title"].center(2),
                        large_image=song_info["cover"],
                        large_text=song_info["album"].center(2),
                        small_image='play' if status != Status.paused else 'pause',
                        small_text="Playing" if status != Status.paused else "Paused",
                        start=int(time.time() - current_float) if status != Status.paused else None,
                        buttons=[{"label": "Listen on Netease", "url": f"https://music.163.com/#/song?id={song_id}"}])
-        except pypresence.exceptions.InvalidID:
+        except InvalidID:
             asyncio.set_event_loop(asyncio.new_event_loop())
             RPC.connect()
         except Exception as e:
@@ -236,7 +248,6 @@ def update():
         gc.collect()
     except Exception as e:
         print("Error while updating: ", e)
-    pythoncom.CoUninitialize()
 
 
 # calls the update function every second, ignore how long the actual update takes

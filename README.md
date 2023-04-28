@@ -117,7 +117,7 @@ The program must be opened in UAC mode (Administrator permission) to work proper
 
 # 构建 Building
 你需要 / You need:
-- Python 3.6 - 3.11
+- Python 3.8 - 3.11
 - `pip install -r requirements.txt`
 
 运行build.txt里面的命令即可。
