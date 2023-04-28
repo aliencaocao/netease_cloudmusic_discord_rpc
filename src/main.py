@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import asyncio
 import gc
+import os
 import re
 import sys
 import time
 from enum import IntFlag, auto
-from os import path
 from threading import Event, Thread
 from typing import Callable, TypedDict
 
@@ -27,7 +29,7 @@ interval = 1
 # regexes
 re_song_id = re.compile(r'(\d+)')
 
-if path.isfile('debug.log'):
+if os.path.isfile('debug.log'):
     sys.stdout = open('debug.log', 'a')
 
 print(f'Netease Cloud Music Discord RPC v{__version__}, Supporting NCM version: {", ".join(offsets.keys())}')
@@ -111,8 +113,8 @@ def get_song_info_from_netease(song_id: str) -> bool:
 
 
 def get_song_info_from_local(song_id: str) -> bool:
-    filepath = path.join(path.expandvars('%LOCALAPPDATA%'), 'Netease/CloudMusic/webdata/file/history')
-    if not path.exists(filepath):
+    filepath = os.path.join(os.path.expandvars('%LOCALAPPDATA%'), 'Netease/CloudMusic/webdata/file/history')
+    if not os.path.exists(filepath):
         return False
     try:
         with(open(filepath, 'r', encoding='utf-8')) as f:
