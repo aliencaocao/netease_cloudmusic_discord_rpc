@@ -212,8 +212,8 @@ def update():
 
         try:
             RPC.update(pid=pid,
-                       details=song_info["title"],
                        state=f'{song_info["artist"]} | {song_info["album"]}',
+                       details=song_info["title"].center(2),
                        large_image=song_info["cover"],
                        large_text=song_info["album"].center(2),
                        small_image='play' if status != Status.paused else 'pause',
