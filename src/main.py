@@ -15,7 +15,7 @@ import pythoncom
 import wmi
 from pyMeow import close_process, get_module, get_process_name, open_process, pid_exists, r_bytes, r_float64, r_uint
 from pyncm import apis
-from pypresence import InvalidID, Presence
+from pypresence import Presence, PyPresenceException
 from win32api import GetFileVersionInfo, HIWORD, LOWORD
 
 __version__ = '0.2.6'
@@ -24,7 +24,8 @@ offsets = {'2.7.1.1669': {'current': 0x8C8AF8, 'song_array': 0x8E9044},
            '2.10.6.3993': {'current': 0xA65568, 'song_array': 0xB15654},
            '2.10.7.4239': {'current': 0xA66568, 'song_array': 0xB16974},
            '2.10.8.4337': {'current': 0xA74570, 'song_array': 0xB24F28},
-           '2.10.10.4509': {'current': 0xA77580, 'song_array': 0xB282CC}}
+           '2.10.10.4509': {'current': 0xA77580, 'song_array': 0xB282CC},
+           '2.10.10.4689': {'current': 0xA79580, 'song_array': 0xB2AD10}}
 interval = 1
 
 # regexes
@@ -232,7 +233,7 @@ def update():
                        small_text="Playing" if status != Status.paused else "Paused",
                        start=int(time.time() - current_float) if status != Status.paused else None,
                        buttons=[{"label": "Listen on Netease", "url": f"https://music.163.com/#/song?id={song_id}"}])
-        except InvalidID:
+        except PyPresenceException:
             asyncio.set_event_loop(asyncio.new_event_loop())
             RPC.connect()
         except Exception as e:

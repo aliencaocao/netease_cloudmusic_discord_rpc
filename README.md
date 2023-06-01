@@ -18,6 +18,7 @@ Written in pure Python, supports latest versions of NetEase Cloud Music. Current
 * 2.10.7 build 200847
 * 2.10.8 build 200945
 * 2.10.10 build 201117
+* 2.10.10 build 201297
 
 还会继续支持未来的新版本。
 
@@ -29,6 +30,7 @@ Currently supported versions:
 * 2.10.7 build 200847
 * 2.10.8 build 200945
 * 2.10.10 build 201117
+* 2.10.10 build 201297
 
 Support for future versions will be added.
 

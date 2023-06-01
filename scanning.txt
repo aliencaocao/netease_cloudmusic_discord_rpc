@@ -1,1 +1,1 @@
-play 爱你没错 by 雷小宝 and run the brute force scirpt in scanning.ipynb
+play 爱你没错 by 雷小宝 and run the brute force script in scanning.ipynb
