@@ -25,7 +25,9 @@ offsets = {'2.7.1.1669': {'current': 0x8C8AF8, 'song_array': 0x8E9044},
            '2.10.7.4239': {'current': 0xA66568, 'song_array': 0xB16974},
            '2.10.8.4337': {'current': 0xA74570, 'song_array': 0xB24F28},
            '2.10.10.4509': {'current': 0xA77580, 'song_array': 0xB282CC},
-           '2.10.10.4689': {'current': 0xA79580, 'song_array': 0xB2AD10}}
+           '2.10.10.4689': {'current': 0xA79580, 'song_array': 0xB2AD10},
+           '2.10.11.4930': {'current': 0xA7A580, 'song_array': 0xB2BCB0},
+           }
 interval = 1
 
 # regexes
