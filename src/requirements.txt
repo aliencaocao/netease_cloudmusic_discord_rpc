@@ -1,6 +1,6 @@
 pyMeow @ https://github.com/qb-0/pyMeow/releases/download/1.43.25/pyMeow-1.43.25.zip
 WMI
-pypresence
+pypresence >= 4.3.0
 pyncm
 pyinstaller
 orjson
