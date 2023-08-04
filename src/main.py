@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import asyncio
 import gc
 import logging
@@ -8,14 +6,14 @@ import re
 import time
 from enum import IntFlag, auto
 from threading import Event, Thread
-from typing import Callable, TypedDict
+from typing import Callable, Dict, Tuple, TypedDict
 
 import orjson
 import pythoncom
 import wmi
 from pyMeow import close_process, get_module, get_process_name, open_process, pid_exists, pointer_chain_64, r_bytes, r_float64, r_uint
 from pyncm import apis
-from pypresence import Presence
+from pypresence import DiscordNotFound, PipeClosed, Presence
 from win32api import GetFileVersionInfo, HIWORD, LOWORD
 
 __version__ = '0.3.0'
@@ -90,9 +88,23 @@ def sec_to_str(sec: float) -> str:
     return f'{m:02.00f}:{s:05.02f}'
 
 
+def connect_discord(presence: Presence) -> bool:
+    while True:
+        try:
+            presence.connect()
+        except DiscordNotFound:
+            logger.warning('Discord not found. Retrying in 5 seconds.')
+            time.sleep(5)
+        except Exception as e:
+            logger.warning('Error while connecting to Discord:', e)
+            time.sleep(5)
+        else:
+            return True
+
+
 client_id = '1045242932128645180'
 RPC = Presence(client_id)
-RPC.connect()
+connect_discord(RPC)
 
 logger.info('RPC Launched.')
 
@@ -103,7 +115,7 @@ last_status = Status.changed
 last_id = ''
 last_float = 0.0
 
-song_info_cache: dict[str, SongInfo] = {}
+song_info_cache: Dict[str, SongInfo] = {}
 
 
 def get_song_info_from_netease(song_id: str) -> bool:
@@ -159,7 +171,7 @@ def get_song_info(song_id: str) -> SongInfo:
     return song_info_cache[song_id]
 
 
-def find_process() -> tuple[int, str]:
+def find_process() -> Tuple[int, str]:
     logger.info('Searching for process...')
     pythoncom.CoInitialize()
     wmic = wmi.WMI()
@@ -207,7 +219,7 @@ def update():
         current_float = r_float64(process, module_base + offsets[version]['current'])
         current_pystr = sec_to_str(current_float)
         if version.startswith('2.'):
-            songid_array = r_uint(process, module_base + song_array_offset)
+            songid_array = r_uint(process, module_base + offsets[version]['song_array'])
             song_id = (r_bytes(process, songid_array, 0x14).decode('utf-16').split('_')[0])  # Song ID can be shorter than 10 digits.
         elif version.startswith('3.'):
             songid_array = pointer_chain_64(process, module_base + offsets[version]['song_array'], offsets[version]['song_array_offsets'])
@@ -254,9 +266,9 @@ def update():
                        buttons = [{'label': 'Listen on Netease',
                                    'url': f'https://music.163.com/#/song?id={song_id}'}]
                        )
-        except PyPresenceException:
-            asyncio.set_event_loop(asyncio.new_event_loop())
-            RPC.connect()
+        except PipeClosed:
+            logger.info('Reconnecting to Discord...')
+            connect_discord(RPC)
         except Exception as e:
             logger.exception('Error while updating Discord:', e)
             pass
