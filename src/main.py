@@ -207,7 +207,7 @@ def update():
         current_float = r_float64(process, module_base + offsets[version]['current'])
         current_pystr = sec_to_str(current_float)
         if version.startswith('2.'):
-            songid_array = r_uint(process, module_base + song_array_offset)
+            songid_array = r_uint(process, module_base + offsets[version]['song_array'])
             song_id = (r_bytes(process, songid_array, 0x14).decode('utf-16').split('_')[0])  # Song ID can be shorter than 10 digits.
         elif version.startswith('3.'):
             songid_array = pointer_chain_64(process, module_base + offsets[version]['song_array'], offsets[version]['song_array_offsets'])
