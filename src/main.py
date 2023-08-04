@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import asyncio
 import gc
 import logging
@@ -8,7 +6,7 @@ import re
 import time
 from enum import IntFlag, auto
 from threading import Event, Thread
-from typing import Callable, TypedDict
+from typing import Callable, Dict, Tuple, TypedDict
 
 import orjson
 import pythoncom
@@ -103,7 +101,7 @@ last_status = Status.changed
 last_id = ''
 last_float = 0.0
 
-song_info_cache: dict[str, SongInfo] = {}
+song_info_cache: Dict[str, SongInfo] = {}
 
 
 def get_song_info_from_netease(song_id: str) -> bool:
@@ -159,7 +157,7 @@ def get_song_info(song_id: str) -> SongInfo:
     return song_info_cache[song_id]
 
 
-def find_process() -> tuple[int, str]:
+def find_process() -> Tuple[int, str]:
     logger.info('Searching for process...')
     pythoncom.CoInitialize()
     wmic = wmi.WMI()
