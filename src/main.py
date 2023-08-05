@@ -1,4 +1,3 @@
-import asyncio
 import gc
 import logging
 import os
@@ -172,7 +171,6 @@ def get_song_info(song_id: str) -> SongInfo:
 
 
 def find_process() -> Tuple[int, str]:
-    logger.info('Searching for process...')
     pythoncom.CoInitialize()
     wmic = wmi.WMI()
     process_list = wmic.Win32_Process(name='cloudmusic.exe')
@@ -270,7 +268,8 @@ def update():
             logger.info('Reconnecting to Discord...')
             connect_discord(RPC)
         except Exception as e:
-            logger.exception('Error while updating Discord:', e)
+            logger.error('Error while updating to Discord:')
+            logger.exception(e)
             pass
 
         last_id = song_id
@@ -282,7 +281,8 @@ def update():
 
         gc.collect()
     except Exception as e:
-        logger.exception('Error while updating: ', e)
+        logger.error('Error while updating song info:')
+        logger.exception(e)
 
 
 # calls the update function every second, ignore how long the actual update takes
