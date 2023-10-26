@@ -15,7 +15,7 @@ from pyncm import apis
 from pypresence import DiscordNotFound, PipeClosed, Presence
 from win32api import GetFileVersionInfo, HIWORD, LOWORD
 
-__version__ = '0.3.0'
+__version__ = '0.3.1'
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -37,8 +37,9 @@ offsets = {
     '2.10.10.4509': {'current': 0xA77580, 'song_array': 0xB282CC},
     '2.10.10.4689': {'current': 0xA79580, 'song_array': 0xB2AD10},
     '2.10.11.4930': {'current': 0xA7A580, 'song_array': 0xB2BCB0},
-    '3.0.1.5106': {'current': 0x18ED7C8, 'song_array': 0x192D6A0, 'song_array_offsets': [0x48, 0x30, 0x70, 0x0]},
-}
+    '2.10.12.5241': {'current': 0xA7A580, 'song_array': 0xB2BCB0},}
+    # '3.0.1.5106': {'current': 0x18ED7C8, 'song_array': 0x192D6A0, 'song_array_offsets': [0x48, 0x30, 0x70, 0x0]},  # does not work reliably
+
 interval = 1
 
 # regexes

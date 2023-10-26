@@ -22,7 +22,8 @@ Written in pure Python, supports latest versions of NetEase Cloud Music. Current
 * 2.10.10 build 201117
 * 2.10.10 build 201297
 * 2.10.11 build 201538
-* 3.0.0.Beta x64 build 201714
+* 2.10.12 build 201849
+* 3.0.0 WIP/正在开发中
 
 还会继续支持未来的新版本。/Support for future versions will be added.
 
@@ -48,7 +49,7 @@ The program must be opened in UAC mode (Administrator permission) to work proper
 
 # 构建 Building
 你需要 / You need:
-- Python 3.8 - 3.11
+- Python 3.8 - 3.12
 - `pip install -r requirements.txt`
 
 运行build.txt里面的命令即可。
