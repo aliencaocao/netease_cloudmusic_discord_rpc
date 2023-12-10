@@ -16,6 +16,12 @@ jobs:
       with:
         python-version: '3.12'
     - run: pip install pyinstaller-versionfile
+    - name: Install UPX
+      uses: crazy-max/ghaction-upx@v3
+      with:
+          install-only: true
+    - name: Check UPX version
+      run: upx --version
     - name: Create version.txt for PyInstaller
       working-directory: ./src
       run: create-version-file version.yml --outfile version.txt

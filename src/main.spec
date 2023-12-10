@@ -42,5 +42,5 @@ exe = EXE(
     entitlements_file=None,
     version='version.txt',
     uac_admin=True,
-    uac_uiaccess=True,
+    uac_uiaccess=False,
 )

@@ -15,7 +15,7 @@ from pyncm import apis
 from pypresence import DiscordNotFound, PipeClosed, Presence
 from win32api import GetFileVersionInfo, HIWORD, LOWORD
 
-__version__ = '0.3.1'
+__version__ = '0.3.2'
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -255,15 +255,15 @@ def update():
         try:
             RPC.update(pid=pid,
                        state=f"{song_info['artist']} | {song_info['album']}",
-                       details = song_info['title'].center(2),
-                       large_image = song_info['cover'],
-                       large_text = song_info['album'].center(2),
-                       small_image = 'play' if status != Status.paused else 'pause',
-                       small_text = 'Playing' if status != Status.paused else 'Paused',
-                       start = int(time.time() - current_float)
+                       details=song_info['title'].center(2),
+                       large_image=song_info['cover'],
+                       large_text=song_info['album'].center(2),
+                       small_image='play' if status != Status.paused else 'pause',
+                       small_text='Playing' if status != Status.paused else 'Paused',
+                       start=int(time.time() - current_float)
                        if status != Status.paused else None,
-                       buttons = [{'label': 'Listen on Netease',
-                                   'url': f'https://music.163.com/#/song?id={song_id}'}]
+                       buttons=[{'label': 'Listen on Netease',
+                                 'url': f'https://music.163.com/#/song?id={song_id}'}]
                        )
         except PipeClosed:
             logger.info('Reconnecting to Discord...')
