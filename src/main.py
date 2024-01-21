@@ -147,11 +147,15 @@ def toggle():
     global timer
     if not toggle_var.get():
         if connect_discord(RPC):
+            stop_variable.clear()
             timer = RepeatedTimer(interval, update, stop_variable=stop_variable)
             toggle_var.set(True)
+            menu.insert(0, item('Disable' if not is_CN else '禁用', toggle))
     else:
         stop_update()
         toggle_var.set(False)
+        menu.insert(0, item('Enable' if not is_CN else '启用', toggle))
+    icon.menu = menu
 
 
 def about():
@@ -170,10 +174,9 @@ def show_window(icon, item):
 
 
 def hide_window():
+    global icon
     root.withdraw()
     image = Image.open(get_res_path("app_logo.png"))
-    menu = [item('Show' if not is_CN else '显示主窗口', show_window),
-            item('Quit' if not is_CN else '退出', quit_app)]
     if toggle_var.get():
         menu.insert(0, item('Disable' if not is_CN else '禁用', toggle))
     else:
@@ -369,6 +372,9 @@ def stop_update():
         RPC.clear(pid=pid)
 
 
+menu = [item('Show' if not is_CN else '显示主窗口', show_window, default=True),
+        item('Quit' if not is_CN else '退出', quit_app)]
+
 root = Tk()
 root.title('Netease Cloud Music Discord RPC')
 root.resizable(False, False)
@@ -400,6 +406,5 @@ root.protocol('WM_DELETE_WINDOW', hide_window)
 root.after_idle(startup)
 root.mainloop()
 
-# TODO: delay before first update
-# TODO: disable then enable dont work, just disable work
-# TODO: tray icon menu dont update after enable/disable
+# TODO: delay before first update - unable to reproduce reliably
+# TODO: RuntimeError: Event loop is closed error when re-enabling, doesnt affect functionality though
