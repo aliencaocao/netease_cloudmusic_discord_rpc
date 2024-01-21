@@ -37,7 +37,7 @@ Written in pure Python, supports latest versions of NetEase Cloud Music. Current
 ## 使用方法 Usage
 从Release页下载可执行文件(exe)，然后运行exe并保持运行。
 
-程序不会显示任何窗口，而是在后台保持运行。
+使用X关闭程序窗口后，程序会以托盘图标的形式在后台继续运行。右键托盘图标可以控制程序。
 
 程序必须以UAC模式运行（管理员权限）才能正常工作。请右键exe文件，点击属性，在兼容性页面里勾选“以管理员身份运行”。
 
@@ -45,7 +45,7 @@ Written in pure Python, supports latest versions of NetEase Cloud Music. Current
 
 Download the executable binary (exe) from the Release page, Keep the exe running.
 
-The program will not show any window and will run in the background.
+If you close the program window with X, the program will continue to run in the background as a tray icon. Right-click the tray icon to control the program.
 
 The program must be opened in UAC mode (Administrator permission) to work properly. Please right-click on the exe, click Properties, and check "Run as administrator" on the Compatibility page.
 
