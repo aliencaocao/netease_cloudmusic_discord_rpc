@@ -1,21 +1,31 @@
+import ctypes
 import gc
+import locale
 import logging
 import os
 import re
+import sys
 import time
+import webbrowser
 from enum import IntFlag, auto
-from threading import Event, Thread
+from threading import Event as ThreadingEvent, Thread
+from tkinter import *
+from tkinter import BooleanVar, messagebox
+from tkinter.ttk import *
 from typing import Callable, Dict, Tuple, TypedDict
 
 import orjson
+import pystray
 import pythoncom
 import wmi
-from pyMeow import close_process, get_module, get_process_name, open_process, pid_exists, pointer_chain_64, r_bytes, r_float64, r_uint
+from PIL import Image
+from pyMeow import close_process, get_module, get_process_name, open_process, pid_exists, pointer_chain, r_bytes, r_float64, r_uint
 from pyncm import apis
 from pypresence import DiscordNotFound, PipeClosed, Presence
+from pystray import MenuItem as item
 from win32api import GetFileVersionInfo, HIWORD, LOWORD
 
-__version__ = '0.3.2'
+__version__ = '0.3.3'
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -37,27 +47,40 @@ offsets = {
     '2.10.10.4509': {'current': 0xA77580, 'song_array': 0xB282CC},
     '2.10.10.4689': {'current': 0xA79580, 'song_array': 0xB2AD10},
     '2.10.11.4930': {'current': 0xA7A580, 'song_array': 0xB2BCB0},
-    '2.10.12.5241': {'current': 0xA7A580, 'song_array': 0xB2BCB0},}
-    # '3.0.1.5106': {'current': 0x18ED7C8, 'song_array': 0x192D6A0, 'song_array_offsets': [0x48, 0x30, 0x70, 0x0]},  # does not work reliably
+    '2.10.12.5241': {'current': 0xA7A580, 'song_array': 0xB2BCB0},
+    '3.0.6.5811': {'current': 0x192B7F0, 'song_array': 0x0196DC38, 'song_array_offsets': [0x398, 0x0, 0x0, 0x8, 0x8, 0x50, 0xBA0]}, }  # TODO: song array offsets are different for every session, current and song_array stays same
 
 interval = 1
+windll = ctypes.windll.kernel32
+is_CN = locale.windows_locale[windll.GetUserDefaultUILanguage()].startswith('zh_')
 
 # regexes
 re_song_id = re.compile(r'(\d+)')
 logger.info(f"Netease Cloud Music Discord RPC v{__version__}, Supporting NCM version: {', '.join(offsets.keys())}")
 
 
+def get_res_path(relative_path: str) -> str:
+    """ Get absolute path to resource, works for dev and for PyInstaller
+     Relative path will always get extracted into root!"""
+    base_path = getattr(sys, '_MEIPASS', os.path.dirname(__file__))
+    if os.path.exists(os.path.join(base_path, relative_path)):
+        return os.path.join(base_path, relative_path)
+    else:
+        raise FileNotFoundError(f'{os.path.join(base_path, relative_path)} is not found!')
+
+
 class RepeatedTimer:
-    def __init__(self, interval: int, function: Callable[[], None]):
+    def __init__(self, interval: int, function: Callable[[], None], stop_variable: ThreadingEvent):
         self.interval = interval
         self.function = function
+        self.stop_variable = stop_variable
         self.start = time.time()
-        self.event = Event()
+        self.event = ThreadingEvent()
         self.thread = Thread(target=self._target)
         self.thread.start()
 
     def _target(self):
-        while not self.event.wait(self._time):
+        while not self.stop_variable.is_set() and not self.event.wait(self._time):
             self.function()
 
     @property
@@ -89,24 +112,25 @@ def sec_to_str(sec: float) -> str:
 
 
 def connect_discord(presence: Presence) -> bool:
-    while True:
-        try:
-            presence.connect()
-        except DiscordNotFound:
-            logger.warning('Discord not found. Retrying in 5 seconds.')
-            time.sleep(5)
-        except Exception as e:
-            logger.warning('Error while connecting to Discord:', e)
-            time.sleep(5)
-        else:
-            return True
+    try:
+        presence.connect()
+    except DiscordNotFound:
+        connected_var.set(False)
+        logger.warning('Discord not found.')
+        messagebox.showerror('Discord not found', 'Could not detect a running Discord instance. Please make sure Discord is running and try again. Do not use BetterDiscord or other 3rd party clients.')
+        return False
+    except Exception as e:
+        connected_var.set(False)
+        logger.warning('Error while connecting to Discord:', e)
+        return False
+    else:
+        connected_var.set(True)
+        logger.info('Discord Connected.')
+        return True
 
 
 client_id = '1045242932128645180'
 RPC = Presence(client_id)
-connect_discord(RPC)
-
-logger.info('RPC Launched.')
 
 first_run = True
 pid = 0
@@ -114,8 +138,48 @@ version = ''
 last_status = Status.changed
 last_id = ''
 last_float = 0.0
+stop_variable = ThreadingEvent()
 
 song_info_cache: Dict[str, SongInfo] = {}
+
+
+def toggle():
+    global timer
+    if not toggle_var.get():
+        if connect_discord(RPC):
+            timer = RepeatedTimer(interval, update, stop_variable=stop_variable)
+            toggle_var.set(True)
+    else:
+        stop_update()
+        toggle_var.set(False)
+
+
+def about():
+    messagebox.showinfo('About', f"Netease Cloud Music Discord RPC v{__version__}\nSupporting NCM version: {', '.join(offsets.keys())}\nMaintainer: Billy Cao")
+
+
+def quit_app(icon=None, item=None):
+    stop_update()
+    if icon: icon.stop()
+    root.destroy()
+
+
+def show_window(icon, item):
+    icon.stop()
+    root.after(0, root.deiconify())
+
+
+def hide_window():
+    root.withdraw()
+    image = Image.open(get_res_path("app_logo.png"))
+    menu = [item('Show' if not is_CN else '显示主窗口', show_window),
+            item('Quit' if not is_CN else '退出', quit_app)]
+    if toggle_var.get():
+        menu.insert(0, item('Disable' if not is_CN else '禁用', toggle))
+    else:
+        menu.insert(0, item('Enable' if not is_CN else '启用', toggle))
+    icon = pystray.Icon("Netease Cloud Music Discord RPC", image, "Netease Cloud Music Discord RPC", menu)
+    icon.run()
 
 
 def get_song_info_from_netease(song_id: str) -> bool:
@@ -221,10 +285,9 @@ def update():
             songid_array = r_uint(process, module_base + offsets[version]['song_array'])
             song_id = (r_bytes(process, songid_array, 0x14).decode('utf-16').split('_')[0])  # Song ID can be shorter than 10 digits.
         elif version.startswith('3.'):
-            songid_array = pointer_chain_64(process, module_base + offsets[version]['song_array'], offsets[version]['song_array_offsets'])
+            songid_array = pointer_chain(process, module_base + offsets[version]['song_array'], offsets[version]['song_array_offsets'])
             song_id = r_bytes(process, songid_array, 0x14)
-            song_id = bytes([b for b in song_id if b <= 128])  # filter to ascii only
-            song_id = song_id.decode('ascii').split('_')[0]
+            song_id = song_id.decode('utf-16').replace('\x00', '').split('_')[0]
         else:
             raise RuntimeError(f'Unknown version: {version}')
 
@@ -267,7 +330,10 @@ def update():
                        )
         except PipeClosed:
             logger.info('Reconnecting to Discord...')
-            connect_discord(RPC)
+            if connect_discord(RPC):
+                connected_var.set(True)
+            else:
+                connected_var.set(False)
         except Exception as e:
             logger.error('Error while updating to Discord:')
             logger.exception(e)
@@ -286,5 +352,54 @@ def update():
         logger.exception(e)
 
 
-# calls the update function every second, ignore how long the actual update takes
-RepeatedTimer(interval, update)
+def startup():
+    global timer
+    if connect_discord(RPC):
+        timer = RepeatedTimer(interval, update, stop_variable=stop_variable)
+        toggle_var.set(True)
+    else:
+        toggle_var.set(False)
+
+
+def stop_update():
+    stop_variable.set()
+    if 'timer' in globals():
+        timer.stop()
+    if connected_var.get():
+        RPC.clear(pid=pid)
+
+
+root = Tk()
+root.title('Netease Cloud Music Discord RPC')
+root.resizable(False, False)
+root.iconphoto(True, PhotoImage(file=get_res_path('app_logo.png')))
+
+toggle_var = BooleanVar()
+toggle_var.set(False)
+toggle_button_text = StringVar(value='Enabled - Click to disable' if not is_CN else '已启用 - 点击以禁用')
+toggle_var.trace_add('write', lambda *args: toggle_button_text.set(('Enabled - Click to disable' if not is_CN else '已启用 - 点击以禁用') if toggle_var.get() else ('Disabled - Click to enable' if not is_CN else '已禁用 - 点击以启用')))  # noqa
+connected_var = BooleanVar()
+connected_var.set(False)
+
+toggle_button = Button(root, textvariable=toggle_button_text, command=toggle, width=80)
+toggle_button.pack(padx=10, pady=(10, 5))
+
+about_button = Button(root, text='About' if not is_CN else '关于', command=about, width=80)
+about_button.pack(padx=10, pady=5)
+
+github_button = Button(root, text='GitHub', command=lambda: webbrowser.open('https://github.com/aliencaocao/netease_cloudmusic_discord_rpc'), width=80)
+github_button.pack(padx=10, pady=5)
+
+minimize_button = Button(root, text='Minimize' if not is_CN else '最小化到托盘', command=hide_window, width=80)
+minimize_button.pack(padx=10, pady=5)
+
+quit_button = Button(root, text='Quit' if not is_CN else '退出', command=quit_app, width=80)
+quit_button.pack(padx=10, pady=(5, 10))
+
+root.protocol('WM_DELETE_WINDOW', hide_window)
+root.after_idle(startup)
+root.mainloop()
+
+# TODO: delay before first update
+# TODO: disable then enable dont work, just disable work
+# TODO: tray icon menu dont update after enable/disable

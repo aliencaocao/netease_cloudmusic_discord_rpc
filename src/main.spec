@@ -8,7 +8,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('app_logo.png', '.')],
     hiddenimports=[],
     hookspath=[],
     runtime_hooks=[],
@@ -43,4 +43,5 @@ exe = EXE(
     version='version.txt',
     uac_admin=True,
     uac_uiaccess=False,
+    icon=['app_logo.ico'],
 )
