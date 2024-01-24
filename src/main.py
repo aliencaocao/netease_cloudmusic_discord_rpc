@@ -46,8 +46,8 @@ offsets = {
     '2.10.10.4509': {'current': 0xA77580, 'song_array': 0xB282CC},
     '2.10.10.4689': {'current': 0xA79580, 'song_array': 0xB2AD10},
     '2.10.11.4930': {'current': 0xA7A580, 'song_array': 0xB2BCB0},
-    '2.10.12.5241': {'current': 0xA7A580, 'song_array': 0xB2BCB0},
-    '3.0.6.5811': {'current': 0x192B7F0, 'song_array': 0x0196DC38, 'song_array_offsets': [0x398, 0x0, 0x0, 0x8, 0x8, 0x50, 0xBA0]}, }  # TODO: song array offsets are different for every session, current and song_array stays same
+    '2.10.12.5241': {'current': 0xA7A580, 'song_array': 0xB2BCB0}, }
+# '3.0.6.5811': {'current': 0x192B7F0, 'song_array': 0x0196DC38, 'song_array_offsets': [0x398, 0x0, 0x0, 0x8, 0x8, 0x50, 0xBA0]}, }  # TODO: song array offsets are different for every session, current and song_array stays same
 
 interval = 1
 windll = ctypes.windll.kernel32
@@ -55,7 +55,7 @@ is_CN = locale.windows_locale[windll.GetUserDefaultUILanguage()].startswith('zh_
 
 # regexes
 re_song_id = re.compile(r'(\d+)')
-logger.info(f"Netease Cloud Music Discord RPC v{__version__}, Supporting NCM version: {', '.join(offsets.keys())}")
+logger.info(f"Netease Cloud Music Discord RPC v{__version__}\nRunning on Python {sys.version}\nSupporting NCM version: {', '.join(offsets.keys())}")
 
 
 def get_res_path(relative_path: str) -> str:
@@ -103,6 +103,10 @@ class Status(IntFlag):
     playing = auto()  # Song id unchanged and time += interval
     paused = auto()  # Song id unchanged and time unchanged
     changed = auto()  # Song id changed or time changed manually
+
+
+class UnsupportedVersionError(Exception):
+    pass
 
 
 def sec_to_str(sec: float) -> str:
@@ -159,7 +163,8 @@ def toggle():
 
 
 def about():
-    messagebox.showinfo('About', f"Netease Cloud Music Discord RPC v{__version__}\nSupporting NCM version: {', '.join(offsets.keys())}\nMaintainer: Billy Cao")
+    messagebox.showinfo('About', f"Netease Cloud Music Discord RPC v{__version__}\nPython {sys.version}\nSupporting NCM version: {', '.join(offsets.keys())}\nMaintainer: Billy Cao" if not is_CN else
+    f"网易云音乐 Discord RPC v{__version__}\nPython版本 {sys.version}\n支持的网易云音乐版本: {', '.join(offsets.keys())}\n开发者: Billy Cao")
 
 
 def quit_app(icon=None, item=None):
@@ -272,7 +277,8 @@ def update():
                 return
 
         if version not in offsets:
-            raise RuntimeError(f"This version is not supported yet: {version}. Supported version: {', '.join(offsets.keys())}")
+            stop_variable.set()
+            raise UnsupportedVersionError(f"This version is not supported yet: {version}.\nSupported version: {', '.join(offsets.keys())}" if not is_CN else f"目前不支持此网易云音乐版本: {version}。\n支持的版本: {', '.join(offsets.keys())}")
 
         if first_run:
             logger.info(f'Found process: {pid}')
@@ -347,18 +353,31 @@ def update():
 
         if status != Status.paused:
             logger.debug(f"{song_info['title']} - {song_info['artist']}, {current_pystr}")
-
-        gc.collect()
+    except UnsupportedVersionError as e:
+        messagebox.showerror('不支持的网易云音乐版本', str(e))
+        toggle_var.set(False)
+        stop_variable.set()
+        raise e
     except Exception as e:
         logger.error('Error while updating song info:')
         logger.exception(e)
+    gc.collect()
 
 
 def startup():
     global timer
     if connect_discord(RPC):
-        timer = RepeatedTimer(interval, update, stop_variable=stop_variable)
-        toggle_var.set(True)
+        try:
+            timer = RepeatedTimer(interval, update, stop_variable=stop_variable)
+        except UnsupportedVersionError:
+            return  # handled in update() already
+        except Exception as e:
+            messagebox.showerror('Error' if not is_CN else '错误', f'{e}')
+            toggle_var.set(False)
+            stop_variable.set()
+            return
+        else:
+            toggle_var.set(True)
     else:
         toggle_var.set(False)
 
@@ -367,8 +386,7 @@ def stop_update():
     stop_variable.set()
     if 'timer' in globals():
         timer.stop()
-    if connected_var.get():
-        RPC.close()
+    RPC.close()
 
 
 org_menu = [TrayItem('Show' if not is_CN else '显示主窗口', show_window, default=True),
@@ -376,6 +394,7 @@ org_menu = [TrayItem('Show' if not is_CN else '显示主窗口', show_window, de
 enable_item = TrayItem('Enable' if not is_CN else '启用', toggle)
 disable_item = TrayItem('Disable' if not is_CN else '禁用', toggle)
 icon_image = Image.open(get_res_path("app_logo.png"))
+icon = TrayIcon("Netease Cloud Music Discord RPC", icon_image, "Netease Cloud Music Discord RPC", org_menu)
 
 root = Tk()
 root.title('Netease Cloud Music Discord RPC')
