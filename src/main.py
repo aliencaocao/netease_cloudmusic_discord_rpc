@@ -15,14 +15,13 @@ from tkinter.ttk import *
 from typing import Callable, Dict, Tuple, TypedDict
 
 import orjson
-import pystray
 import pythoncom
 import wmi
 from PIL import Image
 from pyMeow import close_process, get_module, get_process_name, open_process, pid_exists, pointer_chain, r_bytes, r_float64, r_uint
 from pyncm import apis
 from pypresence import DiscordNotFound, PipeClosed, Presence
-from pystray import MenuItem as item
+from pystray import Icon as TrayIcon, Menu as TrayMenu, MenuItem as TrayItem
 from win32api import GetFileVersionInfo, HIWORD, LOWORD
 
 __version__ = '0.3.3'
@@ -145,16 +144,17 @@ song_info_cache: Dict[str, SongInfo] = {}
 
 def toggle():
     global timer
+    menu = icon.menu
     if not toggle_var.get():
         if connect_discord(RPC):
             stop_variable.clear()
             timer = RepeatedTimer(interval, update, stop_variable=stop_variable)
             toggle_var.set(True)
-            menu.insert(0, item('Disable' if not is_CN else '禁用', toggle))
+            menu = TrayMenu(*[disable_item] + org_menu)
     else:
         stop_update()
         toggle_var.set(False)
-        menu.insert(0, item('Enable' if not is_CN else '启用', toggle))
+        menu = TrayMenu(*[enable_item] + org_menu)
     icon.menu = menu
 
 
@@ -176,12 +176,11 @@ def show_window(icon, item):
 def hide_window():
     global icon
     root.withdraw()
-    image = Image.open(get_res_path("app_logo.png"))
     if toggle_var.get():
-        menu.insert(0, item('Disable' if not is_CN else '禁用', toggle))
+        menu = TrayMenu(*[disable_item] + org_menu)
     else:
-        menu.insert(0, item('Enable' if not is_CN else '启用', toggle))
-    icon = pystray.Icon("Netease Cloud Music Discord RPC", image, "Netease Cloud Music Discord RPC", menu)
+        menu = TrayMenu(*[enable_item] + org_menu)
+    icon = TrayIcon("Netease Cloud Music Discord RPC", icon_image, "Netease Cloud Music Discord RPC", menu)
     icon.run()
 
 
@@ -200,7 +199,7 @@ def get_song_info_from_netease(song_id: str) -> bool:
         }
         song_info_cache[song_id] = song_info
         return True
-    except Exception as e:
+    except Exception as e:  # normal to fail when playing a cloud drive uploaded file since song ID is not public
         logger.warning('Error while reading from remote:', e)
         return False
 
@@ -369,11 +368,14 @@ def stop_update():
     if 'timer' in globals():
         timer.stop()
     if connected_var.get():
-        RPC.clear(pid=pid)
+        RPC.close()
 
 
-menu = [item('Show' if not is_CN else '显示主窗口', show_window, default=True),
-        item('Quit' if not is_CN else '退出', quit_app)]
+org_menu = [TrayItem('Show' if not is_CN else '显示主窗口', show_window, default=True),
+            TrayItem('Quit' if not is_CN else '退出', quit_app)]
+enable_item = TrayItem('Enable' if not is_CN else '启用', toggle)
+disable_item = TrayItem('Disable' if not is_CN else '禁用', toggle)
+icon_image = Image.open(get_res_path("app_logo.png"))
 
 root = Tk()
 root.title('Netease Cloud Music Discord RPC')
@@ -405,6 +407,3 @@ quit_button.pack(padx=10, pady=(5, 10))
 root.protocol('WM_DELETE_WINDOW', hide_window)
 root.after_idle(startup)
 root.mainloop()
-
-# TODO: delay before first update - unable to reproduce reliably
-# TODO: RuntimeError: Event loop is closed error when re-enabling, doesnt affect functionality though
