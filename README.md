@@ -34,6 +34,10 @@ Written in pure Python, supports latest versions of NetEase Cloud Music. Current
 
 ![demo](demo.png)
 
+![UI.png](UI.png)
+
+![trayUI.png](trayUI.png)
+
 ## 使用方法 Usage
 从Release页下载可执行文件(exe)，然后运行exe并保持运行。
 
