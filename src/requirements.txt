@@ -1,4 +1,4 @@
-pyMeow @ https://github.com/qb-0/pyMeow/releases/download/1.53.36/pyMeow-1.53.36.zip
+pyMeow @ https://github.com/qb-0/pyMeow/releases/download/1.73.42/pyMeow-1.73.42.zip
 WMI
 pypresence >= 4.3.0
 pyncm
