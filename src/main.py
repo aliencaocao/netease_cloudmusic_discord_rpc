@@ -18,7 +18,7 @@ import orjson
 import pythoncom
 import wmi
 from PIL import Image
-from pyMeow import close_process, get_module, get_process_name, open_process, pid_exists, pointer_chain, r_bytes, r_float64, r_uint
+from pyMeow import close_process, get_module, get_process_name, open_process, pid_exists, r_bytes, r_float64, r_uint
 from pyncm import apis
 from pypresence import DiscordNotFound, PipeClosed, Presence
 from pystray import Icon as TrayIcon, Menu as TrayMenu, MenuItem as TrayItem
@@ -49,9 +49,13 @@ offsets = {
     '2.10.12.5241': {'current': 0xA7A580, 'song_array': 0xB2BCB0}, }
 # '3.0.6.5811': {'current': 0x192B7F0, 'song_array': 0x0196DC38, 'song_array_offsets': [0x398, 0x0, 0x0, 0x8, 0x8, 0x50, 0xBA0]}, }  # TODO: song array offsets are different for every session, current and song_array stays same
 
+frozen = getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
 interval = 1
 windll = ctypes.windll.kernel32
 is_CN = locale.windows_locale[windll.GetUserDefaultUILanguage()].startswith('zh_')
+user_startup_folder = os.path.join(os.path.expandvars('%APPDATA%'), r'Microsoft\Windows\Start Menu\Programs\Startup')
+startup_file_path = os.path.join(user_startup_folder, 'Netease Cloud Music Discord RPC.bat')
+start_minimized = '--min' in sys.argv
 
 # regexes
 re_song_id = re.compile(r'(\d+)')
@@ -120,7 +124,8 @@ def connect_discord(presence: Presence) -> bool:
     except DiscordNotFound:
         connected_var.set(False)
         logger.warning('Discord not found.')
-        messagebox.showerror('Discord not found', 'Could not detect a running Discord instance. Please make sure Discord is running and try again. Do not use BetterDiscord or other 3rd party clients.')
+        if not start_minimized:
+            messagebox.showerror('Discord not found', 'Could not detect a running Discord instance. Please make sure Discord is running and try again. Do not use BetterDiscord or other 3rd party clients.')
         return False
     except Exception as e:
         connected_var.set(False)
@@ -160,6 +165,22 @@ def toggle():
         toggle_var.set(False)
         menu = TrayMenu(*[enable_item] + org_menu)
     icon.menu = menu
+
+
+def toggle_startup():
+    if startup_var.get():
+        logger.debug('Adding startup file')
+        with open(startup_file_path, 'w+') as f:
+            if frozen:
+                cmd = f'start "" "{sys.executable}" --min'
+            else:
+                cmd = f'start "" "{sys.executable}" "{__file__}" --min'
+            logger.debug(f'Writing to {os.path.join(user_startup_folder, "Netease Cloud Music Discord RPC.bat")}\n{cmd}')
+            f.write(cmd)
+    else:
+        logger.debug('Removing startup file')
+        if os.path.isfile(startup_file_path):
+            os.remove(startup_file_path)
 
 
 def about():
@@ -354,7 +375,8 @@ def update():
         if status != Status.paused:
             logger.debug(f"{song_info['title']} - {song_info['artist']}, {current_pystr}")
     except UnsupportedVersionError as e:
-        messagebox.showerror('不支持的网易云音乐版本', str(e))
+        if not start_minimized:
+            messagebox.showerror('不支持的网易云音乐版本', str(e))
         toggle_var.set(False)
         stop_variable.set()
         raise e
@@ -366,6 +388,8 @@ def update():
 
 def startup():
     global timer
+    if start_minimized:
+        hide_window()
     if connect_discord(RPC):
         try:
             timer = RepeatedTimer(interval, update, stop_variable=stop_variable)
@@ -386,7 +410,10 @@ def stop_update():
     stop_variable.set()
     if 'timer' in globals():
         timer.stop()
-    RPC.close()
+    try:
+        RPC.close()
+    except:  # if not connected then it will error, just ignore it
+        pass
 
 
 org_menu = [TrayItem('Show' if not is_CN else '显示主窗口', show_window, default=True),
@@ -410,6 +437,11 @@ connected_var.set(False)
 
 toggle_button = Button(root, textvariable=toggle_button_text, command=toggle, width=80)
 toggle_button.pack(padx=10, pady=(10, 5))
+
+startup_var = BooleanVar()
+startup_var.set(os.path.isfile(startup_file_path))
+startup_checkbox = Checkbutton(root, text='Start with Windows' if not is_CN else '开机自启', variable=startup_var, command=toggle_startup)
+startup_checkbox.pack(padx=10, pady=5)
 
 about_button = Button(root, text='About' if not is_CN else '关于', command=about, width=80)
 about_button.pack(padx=10, pady=5)

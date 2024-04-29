@@ -6,3 +6,4 @@ pyinstaller
 orjson
 pystray
 Pillow
+pywin32
