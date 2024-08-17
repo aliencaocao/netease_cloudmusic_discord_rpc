@@ -185,8 +185,9 @@ def toggle_startup():
 
 
 def about():
-    messagebox.showinfo('About', f"Netease Cloud Music Discord RPC v{__version__}\nPython {sys.version}\nSupporting NCM version: {', '.join(offsets.keys())}\nMaintainer: Billy Cao" if not is_CN else
-    f"网易云音乐 Discord RPC v{__version__}\nPython版本 {sys.version}\n支持的网易云音乐版本: {', '.join(offsets.keys())}\n开发者: Billy Cao")
+    supported_ver_str = '\n'.join(offsets.keys())
+    messagebox.showinfo('About', f"Netease Cloud Music Discord RPC v{__version__}\nPython {sys.version}\nSupporting NCM version:\n{supported_ver_str}\nMaintainer: Billy Cao" if not is_CN else
+    f"网易云音乐 Discord RPC v{__version__}\nPython版本 {sys.version}\n支持的网易云音乐版本:\n{supported_ver_str}\n开发者: Billy Cao")
 
 
 def quit_app(icon=None, item=None):
@@ -294,8 +295,13 @@ def update():
     try:
         if not pid_exists(pid) or get_process_name(pid) != 'cloudmusic.exe':
             pid, version = find_process()
-            if not pid:
-                # If the app isn't running, do nothing
+            if not pid:  # If netease client isn't running, clear presence
+                logger.warning('Netease Cloud Music not found. Disconnecting RPC.')
+                if not first_run:
+                    RPC.clear()
+                    RPC.close()
+                    connected_var.set(False)
+                    first_run = True
                 return
 
         if version not in offsets:
@@ -305,6 +311,13 @@ def update():
         if first_run:
             logger.info(f'Found process: {pid}')
             first_run = False
+
+        if not connected_var.get():
+            if connect_discord(RPC):
+                connected_var.set(True)
+            else:
+                logger.error('Failed to connect to Discord.')
+                return
 
         process = open_process(pid)
         module_base = get_module(process, 'cloudmusic.dll')['base']
@@ -355,9 +368,11 @@ def update():
                        small_text='Playing' if status != Status.paused else 'Paused',
                        start=int(time.time() - current_float)
                        if status != Status.paused else None,
-                       buttons=[{'label': 'Listen on Netease',
+                       buttons=[{'label': 'Listen on NetEase',
                                  'url': f'https://music.163.com/#/song?id={song_id}'}]
                        )
+            song_title_text.set(song_info['title'])
+            song_artist_text.set(song_info['artist'])
         except PipeClosed:
             logger.info('Reconnecting to Discord...')
             if connect_discord(RPC):
@@ -429,6 +444,15 @@ root.title('Netease Cloud Music Discord RPC')
 root.resizable(False, False)
 root.iconphoto(True, PhotoImage(file=get_res_path('app_logo.png')))
 
+song_info_label_frame = LabelFrame(root, text='Song Info' if not is_CN else '歌曲信息')
+song_info_label_frame.pack(padx=10, pady=10, fill='both', expand=True)
+song_title_text = StringVar(value='N/A')
+song_artist_text = StringVar(value='')
+title_label = Label(song_info_label_frame, textvariable=song_title_text)
+title_label.pack(padx=10, pady=5)
+artist_label = Label(song_info_label_frame, textvariable=song_artist_text)
+artist_label.pack(padx=10, pady=5)
+
 toggle_var = BooleanVar()
 toggle_var.set(False)
 toggle_button_text = StringVar(value='Enabled - Click to disable' if not is_CN else '已启用 - 点击以禁用')
@@ -436,7 +460,7 @@ toggle_var.trace_add('write', lambda *args: toggle_button_text.set(('Enabled - C
 connected_var = BooleanVar()
 connected_var.set(False)
 
-toggle_button = Button(root, textvariable=toggle_button_text, command=toggle, width=80)
+toggle_button = Button(root, textvariable=toggle_button_text, command=toggle, width=50)
 toggle_button.pack(padx=10, pady=(10, 5))
 
 startup_var = BooleanVar()
@@ -444,18 +468,18 @@ startup_var.set(os.path.isfile(startup_file_path))
 startup_checkbox = Checkbutton(root, text='Start with Windows' if not is_CN else '开机自启', variable=startup_var, command=toggle_startup)
 startup_checkbox.pack(padx=10, pady=5)
 
-about_button = Button(root, text='About' if not is_CN else '关于', command=about, width=80)
+about_button = Button(root, text='About' if not is_CN else '关于', command=about, width=50)
 about_button.pack(padx=10, pady=5)
 
-github_button = Button(root, text='GitHub', command=lambda: webbrowser.open('https://github.com/aliencaocao/netease_cloudmusic_discord_rpc'), width=80)
+github_button = Button(root, text='GitHub', command=lambda: webbrowser.open('https://github.com/aliencaocao/netease_cloudmusic_discord_rpc'), width=50)
 github_button.pack(padx=10, pady=5)
 
-minimize_button = Button(root, text='Minimize' if not is_CN else '最小化到托盘', command=hide_window, width=80)
+minimize_button = Button(root, text='Minimize' if not is_CN else '最小化到托盘', command=hide_window, width=50)
 minimize_button.pack(padx=10, pady=5)
 
-quit_button = Button(root, text='Quit' if not is_CN else '退出', command=quit_app, width=80)
+quit_button = Button(root, text='Quit' if not is_CN else '退出', command=quit_app, width=50)
 quit_button.pack(padx=10, pady=(5, 10))
 
-root.protocol('WM_DELETE_WINDOW', hide_window)
+root.protocol('WM_DELETE_WINDOW', hide_window)  # override close button to minimize to tray
 root.after_idle(startup)
 root.mainloop()
