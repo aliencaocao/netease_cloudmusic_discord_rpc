@@ -44,7 +44,7 @@ Written in pure Python, supports latest versions of NetEase Cloud Music. Current
 
 使用X关闭程序窗口后，程序会以托盘图标的形式在后台继续运行。右键托盘图标可以控制程序。
 
-程序必须以管理员运行才能正常工作。请右键exe文件，点击以管理员身份运行。
+如果网易云音乐是以管理员运行的，则该程序也必须以管理员运行才能正常工作。否则，该程序不需要管理员权限。
 
 与BetterDiscord等第三方Discord客户端不兼容。
 
@@ -52,7 +52,7 @@ Download the executable binary (exe) from the Release page, Keep the exe running
 
 If you close the program window with X, the program will continue to run in the background as a tray icon. Right-click the tray icon to control the program.
 
-The program requires administrator permission to work properly. Please right-click on the exe, and click run as administrator.
+If you run NCM as admin, then the program will also require admin permission to work. Otherwise, no admin permission is required.
 
 Not compatible with third-party Discord clients such as BetterDiscord.
 

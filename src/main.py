@@ -138,6 +138,20 @@ def connect_discord(presence: Presence) -> bool:
         return True
 
 
+def disconnect_discord(presence: Presence):
+    try:
+        presence.clear()
+        presence.close()
+    except Exception as e:
+        logger.warning(f'Error while disconnecting Discord:', e)
+        connected_var.set(False)  # set to false anyways because the only reason why it could fail is due to already disconnected/already closed async loop, which means it is disconnected already
+        return False
+    else:
+        logger.info(f'Disconnected from Discord.')
+        connected_var.set(False)
+        return True
+
+
 client_id = '1045242932128645180'
 RPC = Presence(client_id)
 
@@ -147,6 +161,8 @@ version = ''
 last_status = Status.changed
 last_id = ''
 last_float = 0.0
+last_pause_time = time.time()
+pause_timeout = 30 * 60
 stop_variable = ThreadingEvent()
 
 song_info_cache: Dict[str, SongInfo] = {}
@@ -291,33 +307,26 @@ def update():
     global last_status
     global last_id
     global last_float
+    global last_pause_time
 
     try:
         if not pid_exists(pid) or get_process_name(pid) != 'cloudmusic.exe':
             pid, version = find_process()
             if not pid:  # If netease client isn't running, clear presence
-                logger.warning('Netease Cloud Music not found. Disconnecting RPC.')
+                logger.warning('Netease Cloud Music not found.')
+                song_title_text.set('N/A')
+                song_artist_text.set('')
                 if not first_run:
-                    RPC.clear()
-                    RPC.close()
-                    connected_var.set(False)
+                    disconnect_discord(RPC)
                     first_run = True
                 return
 
         if version not in offsets:
             stop_variable.set()
             raise UnsupportedVersionError(f"This version is not supported yet: {version}.\nSupported version: {', '.join(offsets.keys())}" if not is_CN else f"目前不支持此网易云音乐版本: {version}。\n支持的版本: {', '.join(offsets.keys())}")
-
         if first_run:
             logger.info(f'Found process: {pid}')
             first_run = False
-
-        if not connected_var.get():
-            if connect_discord(RPC):
-                connected_var.set(True)
-            else:
-                logger.error('Failed to connect to Discord.')
-                return
 
         process = open_process(pid)
         module_base = get_module(process, 'cloudmusic.dll')['base']
@@ -340,23 +349,42 @@ def update():
             # Song ID is not ready yet.
             return
 
-        # Interval should fall in (interval - 0.2, interval + 0.2)
-        status = (Status.playing if song_id == last_id and abs(current_float - last_float - interval) < 0.1
+        # Measured interval should fall in (interval +- 0.2)
+        status = (Status.playing if song_id == last_id and abs(current_float - last_float - interval) < 0.2
                   else Status.paused if song_id == last_id and current_float == last_float
         else Status.changed)
-
         if status == Status.playing:
             if last_status != Status.paused:  # Nothing changed
                 last_float = current_float
                 last_status = Status.playing
                 return
+            elif last_status == Status.paused:  # we resumed from pause and may need to reconnect if passed time out
+                logger.debug('Resumed')
+                if not connected_var.get():
+                    if not connect_discord(RPC):
+                        return
+
         elif status == Status.paused:
-            if last_status == Status.paused:  # Nothing changed
+            if last_status == Status.paused:  # Nothing changed but check if it is idle/paused for more than 30min, disconnect RPC until resumed to playing.
+                if connected_var.get() and time.time() - last_pause_time > pause_timeout:
+                    logger.debug('Idle for more than 30min, disconnecting RPC.')
+                    disconnect_discord(RPC)
                 return
-            else:
+            elif last_status == Status.playing:
                 logger.debug('Paused')
+                last_pause_time = time.time()
+
+        elif status == Status.changed:
+            last_pause_time = time.time()  # reset timeout as changed indicates something happened
+            if not connected_var.get():
+                if not connect_discord(RPC):
+                    return
 
         song_info = get_song_info(song_id)
+
+        if not (connected_var.get() or not time.time() - last_pause_time > pause_timeout):
+            if not connect_discord(RPC):
+                return
 
         try:
             RPC.update(pid=pid,
@@ -368,6 +396,7 @@ def update():
                        small_text='Playing' if status != Status.paused else 'Paused',
                        start=int(time.time() - current_float)
                        if status != Status.paused else None,
+                       # Known issue: buttons do not appear on PC due to discord API changes: https://github.com/qwertyquerty/pypresence/issues/237
                        buttons=[{'label': 'Listen on NetEase',
                                  'url': f'https://music.163.com/#/song?id={song_id}'}]
                        )
@@ -386,7 +415,8 @@ def update():
 
         last_id = song_id
         last_float = current_float
-        last_status = status
+        if status != Status.changed:  # only store play/pause status for ease of detection above
+            last_status = status
 
         if status != Status.paused:
             logger.debug(f"{song_info['title']} - {song_info['artist']}, {current_pystr}")
