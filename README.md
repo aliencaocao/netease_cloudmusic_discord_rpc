@@ -23,6 +23,7 @@ Written in pure Python, supports latest versions of NetEase Cloud Music. Current
 * 2.10.10 build 201297
 * 2.10.11 build 201538
 * 2.10.12 build 201849
+* 2.10.13 build 202675 (last version of V2.x clients by NetEase)
 * 3.0.0 WIP/正在开发中 (https://github.com/aliencaocao/netease_cloudmusic_discord_rpc/issues/26)
 
 还会继续支持未来的新版本。/Support for future versions will be added.
@@ -43,7 +44,7 @@ Written in pure Python, supports latest versions of NetEase Cloud Music. Current
 
 使用X关闭程序窗口后，程序会以托盘图标的形式在后台继续运行。右键托盘图标可以控制程序。
 
-程序必须以UAC模式运行（管理员权限）才能正常工作。请右键exe文件，点击属性，在兼容性页面里勾选“以管理员身份运行”。
+程序必须以管理员运行才能正常工作。请右键exe文件，点击以管理员身份运行。
 
 与BetterDiscord等第三方Discord客户端不兼容。
 
@@ -51,7 +52,7 @@ Download the executable binary (exe) from the Release page, Keep the exe running
 
 If you close the program window with X, the program will continue to run in the background as a tray icon. Right-click the tray icon to control the program.
 
-The program must be opened in UAC mode (Administrator permission) to work properly. Please right-click on the exe, click Properties, and check "Run as administrator" on the Compatibility page.
+The program requires administrator permission to work properly. Please right-click on the exe, and click run as administrator.
 
 Not compatible with third-party Discord clients such as BetterDiscord.
 

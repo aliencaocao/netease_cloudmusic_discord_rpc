@@ -24,7 +24,7 @@ from pypresence import DiscordNotFound, PipeClosed, Presence
 from pystray import Icon as TrayIcon, Menu as TrayMenu, MenuItem as TrayItem
 from win32api import GetFileVersionInfo, HIWORD, LOWORD
 
-__version__ = '0.3.4'
+__version__ = '0.3.5'
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -46,7 +46,9 @@ offsets = {
     '2.10.10.4509': {'current': 0xA77580, 'song_array': 0xB282CC},
     '2.10.10.4689': {'current': 0xA79580, 'song_array': 0xB2AD10},
     '2.10.11.4930': {'current': 0xA7A580, 'song_array': 0xB2BCB0},
-    '2.10.12.5241': {'current': 0xA7A580, 'song_array': 0xB2BCB0}, }
+    '2.10.12.5241': {'current': 0xA7A580, 'song_array': 0xB2BCB0},
+    '2.10.13.6067': {'current': 0xA7A590, 'song_array': 0xB2BCD0},
+}
 # '3.0.6.5811': {'current': 0x192B7F0, 'song_array': 0x0196DC38, 'song_array_offsets': [0x398, 0x0, 0x0, 0x8, 0x8, 0x50, 0xBA0]}, }  # TODO: song array offsets are different for every session, current and song_array stays same
 
 frozen = getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
@@ -56,9 +58,8 @@ is_CN = locale.windows_locale[windll.GetUserDefaultUILanguage()].startswith('zh_
 user_startup_folder = os.path.join(os.path.expandvars('%APPDATA%'), r'Microsoft\Windows\Start Menu\Programs\Startup')
 startup_file_path = os.path.join(user_startup_folder, 'Netease Cloud Music Discord RPC.bat')
 start_minimized = '--min' in sys.argv
-
-# regexes
 re_song_id = re.compile(r'(\d+)')
+
 logger.info(f"Netease Cloud Music Discord RPC v{__version__}\nRunning on Python {sys.version}\nSupporting NCM version: {', '.join(offsets.keys())}")
 
 
