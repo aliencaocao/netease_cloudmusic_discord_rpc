@@ -15,6 +15,7 @@ Written in pure Python, supports latest versions of NetEase Cloud Music. Current
 目前支持版本/Currently supported versions:
 
 * 2.7.1 build 198277（微软商店版本）/ (Microsoft Store version)
+* 2.10.3 build 200221（微软商店版本）/ (Microsoft Store version)
 * 2.10.5 build 200537（微软商店版本）/ (Microsoft Store version)
 * 2.10.6 build 200601
 * 2.10.7 build 200847

@@ -39,6 +39,7 @@ if os.path.isfile('debug.log'):
 
 offsets = {
     '2.7.1.1669': {'current': 0x8C8AF8, 'song_array': 0x8E9044},
+    '2.10.3.3613': {'current': 0xA39550, 'song_array': 0xAE8F80},
     '2.10.5.3929': {'current': 0xA47548, 'song_array': 0xAF6FC8},
     '2.10.6.3993': {'current': 0xA65568, 'song_array': 0xB15654},
     '2.10.7.4239': {'current': 0xA66568, 'song_array': 0xB16974},
