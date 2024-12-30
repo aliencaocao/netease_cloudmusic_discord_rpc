@@ -24,7 +24,7 @@ from pypresence import DiscordNotFound, PipeClosed, Presence
 from pystray import Icon as TrayIcon, Menu as TrayMenu, MenuItem as TrayItem
 from win32api import GetFileVersionInfo, HIWORD, LOWORD
 
-__version__ = '0.3.5'
+__version__ = '0.3.6'
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -226,7 +226,7 @@ def hide_window():
     else:
         menu = TrayMenu(*[enable_item] + org_menu)
     icon = TrayIcon("Netease Cloud Music Discord RPC", icon_image, "Netease Cloud Music Discord RPC", menu)
-    icon.run()
+    Thread(target=icon.run, daemon=True).start()  # must run this in thread, else it block the update RepeatTimer thread
 
 
 def get_song_info_from_netease(song_id: str) -> bool:
