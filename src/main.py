@@ -1,5 +1,4 @@
 import ctypes
-import gc
 import locale
 import logging
 import os
@@ -15,8 +14,7 @@ from tkinter.ttk import *
 from typing import Callable, Dict, Tuple, TypedDict
 
 import orjson
-import pythoncom
-import wmi
+import psutil
 from PIL import Image
 from pyMeow import aob_scan_module, close_process, get_module, get_process_name, open_process, pid_exists, r_bytes, r_float64, r_int, r_int64, r_uint
 from pyncm import apis
@@ -128,35 +126,37 @@ def sec_to_str(sec: float) -> str:
 
 
 def connect_discord(presence: Presence) -> bool:
+    global connected
     try:
         presence.connect()
     except DiscordNotFound:
-        connected_var.set(False)
+        connected = False
         logger.warning('Discord not found.')
         if not start_minimized:
-            messagebox.showerror('Discord not found', 'Could not detect a running Discord instance. Please make sure Discord is running and try again. Do not use BetterDiscord or other 3rd party clients.')
+            root.after(0, lambda: messagebox.showerror('Discord not found', 'Could not detect a running Discord instance. Please make sure Discord is running and try again. Do not use BetterDiscord or other 3rd party clients.'))
         return False
     except Exception as e:
-        connected_var.set(False)
+        connected = False
         logger.warning('Error while connecting to Discord:', e)
         return False
     else:
-        connected_var.set(True)
+        connected = True
         logger.info('Discord Connected.')
         return True
 
 
 def disconnect_discord(presence: Presence):
+    global connected
     try:
         presence.clear()
         presence.close()
     except Exception as e:
         logger.warning(f'Error while disconnecting Discord:', e)
-        connected_var.set(False)  # set to false anyways because the only reason why it could fail is due to already disconnected/already closed async loop, which means it is disconnected already
+        connected = False  # set to false anyways because the only reason why it could fail is due to already disconnected/already closed async loop, which means it is disconnected already
         return False
     else:
         logger.info(f'Disconnected from Discord.')
-        connected_var.set(False)
+        connected = False
         return True
 
 
@@ -174,6 +174,9 @@ pause_timeout = 30 * 60
 stop_variable = ThreadingEvent()
 
 song_info_cache: Dict[str, SongInfo] = {}
+cached_process = None  # pyMeow process handle, reused across ticks
+cached_module_base = 0  # V2 cloudmusic.dll base address, stable per process
+connected = False  # Discord RPC connection state (plain bool, not BooleanVar — thread-safe under GIL)
 
 
 def toggle():
@@ -222,7 +225,7 @@ def quit_app(icon=None, item=None):
 
 def show_window(icon, item):
     icon.stop()
-    root.after(0, root.deiconify())
+    root.after(0, root.deiconify)
 
 
 def hide_window():
@@ -307,32 +310,39 @@ def get_song_info_from_playing_list(song_id: str) -> bool:
         return False
 
 
-def get_song_info(song_id: str) -> SongInfo:
-    global song_info_cache
+def get_song_info(song_id: str) -> SongInfo | None:
     if song_id not in song_info_cache:
         if not get_song_info_from_local(song_id):
             if not get_song_info_from_playing_list(song_id):
                 get_song_info_from_netease(song_id)
-    return song_info_cache[song_id]
+    return song_info_cache.get(song_id)
 
 
 def find_process() -> Tuple[int, str]:
-    pythoncom.CoInitialize()
-    wmic = wmi.WMI()
-    process_list = wmic.Win32_Process(name='cloudmusic.exe')
-    process_list = [p for p in process_list if '--type=' not in p.CommandLine]
-    if not process_list:
+    candidates = []
+    for proc in psutil.process_iter(attrs=['name', 'pid']):
+        if proc.info['name'] == 'cloudmusic.exe':
+            try:
+                cmdline = proc.cmdline()
+                if any('--type=' in arg for arg in cmdline):
+                    continue
+                candidates.append(proc)
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+    if not candidates:
         return 0, ''
-    if len(process_list) > 1:
+    if len(candidates) > 1:
         raise RuntimeError('Multiple candidate processes found!')
-    process = process_list[0]
+    proc = candidates[0]
+    try:
+        exe_path = proc.exe()
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return 0, ''
 
-    ver_info = GetFileVersionInfo(process.ExecutablePath, '\\')
+    ver_info = GetFileVersionInfo(exe_path, '\\')
     ver = (f"{HIWORD(ver_info['FileVersionMS'])}.{LOWORD(ver_info['FileVersionMS'])}."
            f"{HIWORD(ver_info['FileVersionLS'])}.{LOWORD(ver_info['FileVersionLS'])}")
-
-    pythoncom.CoUninitialize()
-    return process.ProcessId, ver
+    return proc.info['pid'], ver
 
 
 def scan_for_v3_offsets(process: dict, module_name: str = 'cloudmusic.dll') -> Tuple[int, int]:
@@ -399,44 +409,55 @@ def update():
     global last_pause_time
     global v3_schedule_ptr
     global v3_audio_player_ptr
+    global cached_process
+    global cached_module_base
+    global connected
 
     try:
         if not pid_exists(pid) or get_process_name(pid) != 'cloudmusic.exe':
+            # Process died or changed — close cached handle and reset
+            if cached_process is not None:
+                close_process(cached_process)
+                cached_process = None
+                cached_module_base = 0
             pid, version = find_process()
             if not pid:  # If netease client isn't running, clear presence
                 logger.warning('Netease Cloud Music not found.')
-                song_title_text.set('N/A')
-                song_artist_text.set('')
+                root.after(0, lambda: song_title_text.set('N/A'))
+                root.after(0, lambda: song_artist_text.set(''))
                 if not first_run:
                     disconnect_discord(RPC)
                     first_run = True
                 return
+            first_run = True  # New PID found — trigger re-scan of offsets
 
         is_v3 = version.startswith('3.')
         if not is_v3 and version not in offsets:
             stop_variable.set()
             raise UnsupportedVersionError(f"This version is not supported yet: {version}.\nSupported version: {', '.join(offsets.keys())}" if not is_CN else f"目前不支持此网易云音乐版本: {version}。\n支持的版本: {', '.join(offsets.keys())}")
 
-        process = open_process(pid)
+        # Reuse cached process handle; open only when needed
+        if cached_process is None:
+            cached_process = open_process(pid)
 
         if first_run:
             logger.info(f'Found process: {pid}')
             if is_v3:
-                v3_schedule_ptr, v3_audio_player_ptr = scan_for_v3_offsets(process, 'cloudmusic.dll')
+                v3_schedule_ptr, v3_audio_player_ptr = scan_for_v3_offsets(cached_process, 'cloudmusic.dll')
                 logger.info(f'V3 AOB scan complete: schedule={hex(v3_schedule_ptr)}, player={hex(v3_audio_player_ptr)}')
+            else:
+                cached_module_base = get_module(cached_process, 'cloudmusic.dll')['base']
             first_run = False
 
         if is_v3:
-            current_float = r_float64(process, v3_schedule_ptr)
-            song_id = read_v3_song_id(process, v3_audio_player_ptr)
+            current_float = r_float64(cached_process, v3_schedule_ptr)
+            song_id = read_v3_song_id(cached_process, v3_audio_player_ptr)
         else:
-            module_base = get_module(process, 'cloudmusic.dll')['base']
-            current_float = r_float64(process, module_base + offsets[version]['current'])
-            songid_array = r_uint(process, module_base + offsets[version]['song_array'])
-            song_id = r_bytes(process, songid_array, 0x14).decode('utf-16').split('_')[0]  # Song ID can be shorter than 10 digits.
+            current_float = r_float64(cached_process, cached_module_base + offsets[version]['current'])
+            songid_array = r_uint(cached_process, cached_module_base + offsets[version]['song_array'])
+            song_id = r_bytes(cached_process, songid_array, 0x14).decode('utf-16').split('_')[0]  # Song ID can be shorter than 10 digits.
 
         current_pystr = sec_to_str(current_float)
-        close_process(process)
 
         if not re_song_id.match(song_id):
             # Song ID is not ready yet.
@@ -453,15 +474,18 @@ def update():
                 return
             elif last_status == Status.paused:  # we resumed from pause and may need to reconnect if passed time out
                 logger.debug('Resumed')
-                if not connected_var.get():
+                if not connected:
                     if not connect_discord(RPC):
                         return
 
         elif status == Status.paused:
-            if last_status == Status.paused:  # Nothing changed but check if it is idle/paused for more than 30min, disconnect RPC until resumed to playing.
-                if connected_var.get() and time.time() - last_pause_time > pause_timeout:
-                    logger.debug('Idle for more than 30min, disconnecting RPC.')
-                    disconnect_discord(RPC)
+            if last_status == Status.paused:  # Nothing changed but check if it is idle/paused for more than 30min, clear presence but keep connection alive to avoid reconnection throttling.
+                if connected and time.time() - last_pause_time > pause_timeout:
+                    logger.debug('Idle for more than 30min, clearing RPC presence.')
+                    try:
+                        RPC.clear()
+                    except Exception:
+                        pass
                 return
             elif last_status == Status.playing:
                 logger.debug('Paused')
@@ -469,13 +493,20 @@ def update():
 
         elif status == Status.changed:
             last_pause_time = time.time()  # reset timeout as changed indicates something happened
-            if not connected_var.get():
+            if not connected:
                 if not connect_discord(RPC):
                     return
 
         song_info = get_song_info(song_id)
 
-        if not (connected_var.get() or not time.time() - last_pause_time > pause_timeout):
+        if song_info is None:
+            logger.warning(f'Could not find song info for ID: {song_id}')
+            # Still advance tracking state to avoid infinite Status.changed loop
+            last_id = song_id
+            last_float = current_float
+            return
+
+        if not (connected or not time.time() - last_pause_time > pause_timeout):
             if not connect_discord(RPC):
                 return
 
@@ -493,18 +524,15 @@ def update():
                        buttons=[{'label': 'Listen on NetEase',
                                  'url': f'https://music.163.com/#/song?id={song_id}'}]
                        )
-            song_title_text.set(song_info['title'])
-            song_artist_text.set(song_info['artist'])
+            title = song_info['title']
+            artist = song_info['artist']
+            root.after(0, lambda t=title, a=artist: (song_title_text.set(t), song_artist_text.set(a)))
         except PipeClosed:
             logger.info('Reconnecting to Discord...')
-            if connect_discord(RPC):
-                connected_var.set(True)
-            else:
-                connected_var.set(False)
+            connect_discord(RPC)
         except Exception as e:
             logger.error('Error while updating to Discord:')
             logger.exception(e)
-            pass
 
         last_id = song_id
         last_float = current_float
@@ -515,14 +543,14 @@ def update():
             logger.debug(f"{song_info['title']} - {song_info['artist']}, {current_pystr}")
     except UnsupportedVersionError as e:
         if not start_minimized:
-            messagebox.showerror('不支持的网易云音乐版本', str(e))
-        toggle_var.set(False)
+            msg = str(e)
+            root.after(0, lambda m=msg: messagebox.showerror('不支持的网易云音乐版本', m))
+        root.after(0, lambda: toggle_var.set(False))
         stop_variable.set()
         raise e
     except Exception as e:
         logger.error('Error while updating song info:')
         logger.exception(e)
-    gc.collect()
 
 
 def startup():
@@ -546,10 +574,16 @@ def startup():
 
 
 def stop_update():
+    global cached_process, cached_module_base
     stop_variable.set()
     if 'timer' in globals():
         timer.stop()
+    if cached_process is not None:
+        close_process(cached_process)
+        cached_process = None
+        cached_module_base = 0
     try:
+        RPC.clear()
         RPC.close()
     except:  # if not connected then it will error, just ignore it
         pass
@@ -580,9 +614,6 @@ toggle_var = BooleanVar()
 toggle_var.set(False)
 toggle_button_text = StringVar(value='Enabled - Click to disable' if not is_CN else '已启用 - 点击以禁用')
 toggle_var.trace_add('write', lambda *args: toggle_button_text.set(('Enabled - Click to disable' if not is_CN else '已启用 - 点击以禁用') if toggle_var.get() else ('Disabled - Click to enable' if not is_CN else '已禁用 - 点击以启用')))  # noqa
-connected_var = BooleanVar()
-connected_var.set(False)
-
 toggle_button = Button(root, textvariable=toggle_button_text, command=toggle, width=50)
 toggle_button.pack(padx=10, pady=(10, 5))
 

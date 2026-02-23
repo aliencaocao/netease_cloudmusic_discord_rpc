@@ -11,10 +11,10 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
+    - uses: actions/checkout@v6
+    - uses: actions/setup-python@v6
       with:
-        python-version: '3.12'
+        python-version: '3.13'
     - run: pip install pyinstaller-versionfile
     - name: Install UPX
       uses: crazy-max/ghaction-upx@v3
@@ -28,7 +28,7 @@ jobs:
     - name: PyInstaller Windows
       uses: aliencaocao/pyinstaller_action@main
       with:
-        python_ver: '3.12'
+        python_ver: '3.13'
         spec: 'src/main.spec'
         requirements: 'src/requirements.txt'
         upload_exe_with_name: 'Netease Cloudmusic Discord RPC.exe'

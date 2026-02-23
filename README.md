@@ -60,7 +60,7 @@ Not compatible with third-party Discord clients such as BetterDiscord.
 
 # 构建 Building
 你需要 / You need:
-- Python 3.8 - 3.12
+- Python 3.10 - 3.13
 - `pip install -r requirements.txt`
 
 运行build.txt里面的命令即可。

@@ -9,7 +9,7 @@ Windows-only application that reads NetEase Cloud Music (NCM) playback state dir
 ## Commands
 
 ```bash
-# Install dependencies (Python 3.8-3.12)
+# Install dependencies (Python 3.10-3.13)
 pip install -r src/requirements.txt
 
 # Run in development
@@ -34,7 +34,7 @@ The entire application lives in `src/main.py` (~517 lines). There are no tests, 
 
 `startup()` → connects to Discord via pypresence → starts a `RepeatedTimer` (1-second interval) that calls `update()`:
 
-1. **Process discovery**: Uses WMI to find `cloudmusic.exe`, reads file version via `win32api.GetFileVersionInfo`
+1. **Process discovery**: Uses psutil to find `cloudmusic.exe`, reads file version via `win32api.GetFileVersionInfo`
 2. **Memory reading**: Opens process with pyMeow, reads from `cloudmusic.dll`:
    - **V2.x**: base + hardcoded version-specific offsets (`current` → `r_float64` playback time, `song_array` → `r_uint` → UTF-16 song ID)
    - **V3.x**: AOB (array-of-bytes) pattern scan via `aob_scan_module()` to find `schedule_ptr` and `audio_player_ptr` at runtime (offsets change every launch). Song ID read via SSO string logic, UTF-8 encoded.
