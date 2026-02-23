@@ -18,7 +18,7 @@ import orjson
 import pythoncom
 import wmi
 from PIL import Image
-from pyMeow import close_process, get_module, get_process_name, open_process, pid_exists, r_bytes, r_float64, r_uint
+from pyMeow import aob_scan_module, close_process, get_module, get_process_name, open_process, pid_exists, r_bytes, r_float64, r_int, r_int64, r_uint
 from pyncm import apis
 from pypresence import DiscordNotFound, PipeClosed, Presence
 from pystray import Icon as TrayIcon, Menu as TrayMenu, MenuItem as TrayItem
@@ -50,7 +50,14 @@ offsets = {
     '2.10.12.5241': {'current': 0xA7A580, 'song_array': 0xB2BCB0},
     '2.10.13.6067': {'current': 0xA7A590, 'song_array': 0xB2BCD0},
 }
-# '3.0.6.5811': {'current': 0x192B7F0, 'song_array': 0x0196DC38, 'song_array_offsets': [0x398, 0x0, 0x0, 0x8, 0x8, 0x50, 0xBA0]}, }  # TODO: song array offsets are different for every session, current and song_array stays same
+# V3 byte patterns for dynamic memory scanning (offsets change every launch)
+# Source: https://github.com/Kxnrl/NetEase-Cloud-Music-DiscordRPC/blob/d3b77c679379aff1294cc83a285ad4f695376ad6/Vanessa/Players/NetEase.cs#L24
+V3_AUDIO_PLAYER_PATTERN = "48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 90 48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 8D 05 ?? ?? ?? ?? 48 8D A5 ?? ?? ?? ?? 5F 5D C3 CC CC CC CC CC 48 89 4C 24 ?? 55 57 48 81 EC ?? ?? ?? ?? 48 8D 6C 24 ?? 48 8D 7C 24"
+V3_AUDIO_SCHEDULE_PATTERN = "66 0F 2E 0D ?? ?? ?? ?? 7A ?? 75 ?? 66 0F 2E 15"
+
+# Cached V3 pointers (resolved per process launch via AOB scan)
+v3_schedule_ptr = 0
+v3_audio_player_ptr = 0
 
 frozen = getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
 interval = 1
@@ -61,7 +68,7 @@ startup_file_path = os.path.join(user_startup_folder, 'Netease Cloud Music Disco
 start_minimized = '--min' in sys.argv
 re_song_id = re.compile(r'(\d+)')
 
-logger.info(f"Netease Cloud Music Discord RPC v{__version__}\nRunning on Python {sys.version}\nSupporting NCM version: {', '.join(offsets.keys())}")
+logger.info(f"Netease Cloud Music Discord RPC v{__version__}\nRunning on Python {sys.version}\nSupporting NCM version: {', '.join(offsets.keys())}, 3.x (dynamic scan)")
 
 
 def get_res_path(relative_path: str) -> str:
@@ -202,7 +209,7 @@ def toggle_startup():
 
 
 def about():
-    supported_ver_str = '\n'.join(offsets.keys())
+    supported_ver_str = '\n'.join(offsets.keys()) + '\n3.x (dynamic scan)'
     messagebox.showinfo('About', f"Netease Cloud Music Discord RPC v{__version__}\nPython {sys.version}\nSupporting NCM version:\n{supported_ver_str}\nMaintainer: Billy Cao" if not is_CN else
     f"网易云音乐 Discord RPC v{__version__}\nPython版本 {sys.version}\n支持的网易云音乐版本:\n{supported_ver_str}\n开发者: Billy Cao")
 
@@ -274,11 +281,38 @@ def get_song_info_from_local(song_id: str) -> bool:
         return False
 
 
+def get_song_info_from_playing_list(song_id: str) -> bool:
+    filepath = os.path.join(os.path.expandvars('%LOCALAPPDATA%'), 'Netease/CloudMusic/WebData/file/playingList')
+    if not os.path.exists(filepath):
+        return False
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            data = orjson.loads(f.read())
+            song_list = data.get('list', [])
+            song_info_raw_list = [x for x in song_list if str(x.get('id', '')) == song_id]
+            if not song_info_raw_list:
+                return False
+            track = song_info_raw_list[0]['track']
+            song_info: SongInfo = {
+                'cover': track['album']['cover'],
+                'album': track['album']['name'],
+                'duration': track.get('duration', 0) / 1000 if track.get('duration', 0) else 0,
+                'artist': '/'.join([x['name'] for x in track['artists']]),
+                'title': track['name'],
+            }
+            song_info_cache[song_id] = song_info
+        return True
+    except Exception as e:
+        logger.warning('Error while reading from playingList file:', e)
+        return False
+
+
 def get_song_info(song_id: str) -> SongInfo:
     global song_info_cache
     if song_id not in song_info_cache:
         if not get_song_info_from_local(song_id):
-            get_song_info_from_netease(song_id)
+            if not get_song_info_from_playing_list(song_id):
+                get_song_info_from_netease(song_id)
     return song_info_cache[song_id]
 
 
@@ -301,6 +335,60 @@ def find_process() -> Tuple[int, str]:
     return process.ProcessId, ver
 
 
+def scan_for_v3_offsets(process: dict, module_name: str = 'cloudmusic.dll') -> Tuple[int, int]:
+    """Scan cloudmusic.dll for V3 audio pointers using AOB patterns.
+    Returns (schedule_ptr, audio_player_ptr) as absolute virtual addresses."""
+    results = aob_scan_module(process, module_name, V3_AUDIO_SCHEDULE_PATTERN)
+    if not results:
+        raise RuntimeError('V3 AOB scan failed: AudioSchedulePattern not found')
+    match = results[0]
+    text_addr = match + 4
+    displacement = r_int(process, text_addr)
+    schedule_ptr = text_addr + displacement + 4
+    logger.debug(f'V3 schedule pointer: {hex(schedule_ptr)}')
+
+    results = aob_scan_module(process, module_name, V3_AUDIO_PLAYER_PATTERN)
+    if not results:
+        raise RuntimeError('V3 AOB scan failed: AudioPlayerPattern not found')
+    match = results[0]
+    text_addr = match + 3
+    displacement = r_int(process, text_addr)
+    audio_player_ptr = text_addr + displacement + 4
+    logger.debug(f'V3 audio player pointer: {hex(audio_player_ptr)}')
+
+    return schedule_ptr, audio_player_ptr
+
+
+def read_v3_song_id(process: dict, audio_player_ptr: int) -> str:
+    """Read current song ID from V3 memory layout (UTF-8, SSO string)."""
+    audio_play_info = r_int64(process, audio_player_ptr + 0x50)
+    if audio_play_info == 0:
+        return ''
+
+    str_ptr = audio_play_info + 0x10
+    str_length = r_int64(process, str_ptr + 0x10)
+
+    if str_length <= 0:
+        return ''
+
+    # Cap read size to avoid reading excessive memory; song ID strings are short (e.g. "1234567890_0")
+    read_length = min(int(str_length), 128)
+
+    # Small string optimization: if length <= 15, data is inline at str_ptr; otherwise dereference
+    if str_length <= 15:
+        raw = r_bytes(process, str_ptr, read_length)
+    else:
+        str_address = r_int64(process, str_ptr)
+        if str_address == 0:
+            return ''
+        raw = r_bytes(process, str_address, read_length)
+
+    song_str = raw.decode('utf-8')
+    if not song_str or '_' not in song_str:
+        return ''
+    return song_str[:song_str.index('_')]
+
+
 def update():
     global first_run
     global pid
@@ -309,6 +397,8 @@ def update():
     global last_id
     global last_float
     global last_pause_time
+    global v3_schedule_ptr
+    global v3_audio_player_ptr
 
     try:
         if not pid_exists(pid) or get_process_name(pid) != 'cloudmusic.exe':
@@ -322,28 +412,30 @@ def update():
                     first_run = True
                 return
 
-        if version not in offsets:
+        is_v3 = version.startswith('3.')
+        if not is_v3 and version not in offsets:
             stop_variable.set()
             raise UnsupportedVersionError(f"This version is not supported yet: {version}.\nSupported version: {', '.join(offsets.keys())}" if not is_CN else f"目前不支持此网易云音乐版本: {version}。\n支持的版本: {', '.join(offsets.keys())}")
-        if first_run:
-            logger.info(f'Found process: {pid}')
-            first_run = False
 
         process = open_process(pid)
-        module_base = get_module(process, 'cloudmusic.dll')['base']
 
-        current_float = r_float64(process, module_base + offsets[version]['current'])
-        current_pystr = sec_to_str(current_float)
-        if version.startswith('2.'):
-            songid_array = r_uint(process, module_base + offsets[version]['song_array'])
-            song_id = (r_bytes(process, songid_array, 0x14).decode('utf-16').split('_')[0])  # Song ID can be shorter than 10 digits.
-        elif version.startswith('3.'):
-            songid_array = pointer_chain(process, module_base + offsets[version]['song_array'], offsets[version]['song_array_offsets'])
-            song_id = r_bytes(process, songid_array, 0x14)
-            song_id = song_id.decode('utf-16').replace('\x00', '').split('_')[0]
+        if first_run:
+            logger.info(f'Found process: {pid}')
+            if is_v3:
+                v3_schedule_ptr, v3_audio_player_ptr = scan_for_v3_offsets(process, 'cloudmusic.dll')
+                logger.info(f'V3 AOB scan complete: schedule={hex(v3_schedule_ptr)}, player={hex(v3_audio_player_ptr)}')
+            first_run = False
+
+        if is_v3:
+            current_float = r_float64(process, v3_schedule_ptr)
+            song_id = read_v3_song_id(process, v3_audio_player_ptr)
         else:
-            raise RuntimeError(f'Unknown version: {version}')
+            module_base = get_module(process, 'cloudmusic.dll')['base']
+            current_float = r_float64(process, module_base + offsets[version]['current'])
+            songid_array = r_uint(process, module_base + offsets[version]['song_array'])
+            song_id = r_bytes(process, songid_array, 0x14).decode('utf-16').split('_')[0]  # Song ID can be shorter than 10 digits.
 
+        current_pystr = sec_to_str(current_float)
         close_process(process)
 
         if not re_song_id.match(song_id):

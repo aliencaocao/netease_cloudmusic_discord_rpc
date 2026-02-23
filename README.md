@@ -25,10 +25,11 @@ Written in pure Python, supports latest versions of NetEase Cloud Music. Current
 * 2.10.11 build 201538
 * 2.10.12 build 201849
 * 2.10.13 build 202675 (last version of V2.x clients by NetEase)
-* 3.0.0 WIP/正在开发中 (https://github.com/aliencaocao/netease_cloudmusic_discord_rpc/issues/26)
+* 3.x - All V3 versions supported via dynamic memory scanning (no hardcoded offsets needed) / 所有V3版本通过动态内存扫描支持（无需硬编码偏移量）
 
 还会继续支持未来的新版本。/Support for future versions will be added.
 
+V3 memory scanning patterns from / V3内存扫描模式来源: [Kxnrl/NetEase-Cloud-Music-DiscordRPC](https://github.com/Kxnrl/NetEase-Cloud-Music-DiscordRPC/blob/d3b77c679379aff1294cc83a285ad4f695376ad6/Vanessa/Players/NetEase.cs#L24)
 
 旧版本（2.10.3及以下）可以使用这个项目 / For older versions (2.10.3 and below), you can check out this project：https://github.com/Kxnrl/NetEase-Cloud-Music-DiscordRPC
 
