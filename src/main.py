@@ -22,7 +22,7 @@ from pypresence import DiscordNotFound, PipeClosed, Presence
 from pystray import Icon as TrayIcon, Menu as TrayMenu, MenuItem as TrayItem
 from win32api import GetFileVersionInfo, HIWORD, LOWORD
 
-__version__ = '0.3.6'
+__version__ = '0.4.0'
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
